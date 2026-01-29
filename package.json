@@ -1,0 +1,32 @@
+{
+  "name": "temporal-patterns",
+  "version": "1.0.0",
+  "description": "Enterprise Integration Patterns implemented with Temporal workflows",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start:worker": "tsx src/workers/index.ts",
+    "start:client": "tsx src/client.ts",
+    "workflow:order-saga": "tsx src/client.ts order-saga",
+    "workflow:scatter-gather": "tsx src/client.ts scatter-gather",
+    "workflow:process-manager": "tsx src/client.ts process-manager",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@temporalio/activity": "^1.11.7",
+    "@temporalio/client": "^1.11.7",
+    "@temporalio/worker": "^1.11.7",
+    "@temporalio/workflow": "^1.11.7",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
+
