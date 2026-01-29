@@ -1,5 +1,9 @@
 # Night City Chrome & Data Services
 
+<p align="center">
+  <img src="dolphin-hacker.png" alt="Night City Chrome & Data Services" width="300">
+</p>
+
 > *"In Night City, you can become anyone. Just need the right chrome, the right connections, and the balls to use them."* — Rogue Amendiares
 
 A Temporal-based demonstration of **enterprise integration patterns** set in a cyberpunk world inspired by Cyberpunk 2077.
