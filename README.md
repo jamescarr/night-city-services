@@ -4,19 +4,19 @@
 
 # Night City Chrome & Data Services
 
-> *"In Night City, you can become anyone. Just need the right chrome, the right connections, and the balls to use them."* — Rogue Amendiares
+> *"When you want to know how things really work, study them when they're coming apart."* — William Gibson, Neuromancer
 
-A Temporal-based demonstration of **enterprise integration patterns** set in a cyberpunk world inspired by Cyberpunk 2077.
+A cyberpunk-themed exploration of **[Temporal](https://temporal.io/)** for building durable, reliable workflows. This project demonstrates the Saga pattern with compensating transactions, along with Temporal's built-in reliability features like automatic retries, durable execution, and workflow visibility.
 
 ## The Domain
 
-Welcome to Night City, 2077. Megacorporations rule, data is the ultimate currency, and getting chromed up at a ripperdoc is just another Tuesday. This project demonstrates three critical enterprise integration patterns through the lens of Night City's underground economy:
+Welcome to Night City. Megacorporations rule, data is the ultimate currency, and getting chromed up at a ripperdoc is just another Tuesday. We use this setting to explore how Temporal handles complex, multi-step workflows that interact with multiple external systems—and what happens when things go wrong.
 
 ### 1. 🦾 Cyberware Installation Saga
 
-**Pattern: Saga with Compensating Transactions**
+**The Saga Pattern with Compensating Transactions**
 
-Installing cyberware isn't just plugging in new hardware—it's a distributed transaction across four independent systems:
+Installing cyberware requires coordinating four independent systems, each with its own persistent state:
 
 | System | Purpose | Compensation |
 |--------|---------|--------------|
@@ -47,26 +47,26 @@ Reserve → Schedule → Pay → Integrate ✗
 
 ### 2. 📡 Data Broker Scatter-Gather
 
-**Pattern: Scatter-Gather**
+**Parallel Requests with Aggregation**
 
-When you need to move data through Night City's underground networks, you don't call one broker—you query them all and pick the best deal.
+When you need to move data through the underground networks, you don't call one broker—you query them all and pick the best deal. This demonstrates Temporal's ability to run activities in parallel and aggregate results.
 
-| Broker | Specialty | Reputation |
-|--------|-----------|------------|
+| Broker | Specialty | Reliability |
+|--------|-----------|-------------|
 | **Afterlife Connections** | Premium service, high success rate | 95% |
 | **NetWatch Black Market** | Fast but risky (rogue agents) | 70% |
 | **Arasaka External Services** | Corporate precision, slow | 90% |
 | **Voodoo Boys Data Haven** | AI constructs, military encryption | 85% |
 | **Militech Acquisitions** | Aggressive, military specialist | 82% |
 
-**SCATTER:** Query all 5 brokers simultaneously
+**SCATTER:** Query all 5 brokers simultaneously  
 **GATHER:** Analyze responses, find best by price/speed/reliability
 
 ### 3. 🎯 Heist Process Manager
 
-**Pattern: Process Manager (Saga Orchestrator)**
+**Long-Running Workflows with Signals and Queries**
 
-Coordinating a shadowrun against Arasaka Tower requires more than just a plan—it needs a state machine that can respond to real-time intel.
+Coordinating a shadowrun requires more than just a plan—it needs a state machine that can respond to real-time intel. This demonstrates Temporal's signals (external events that affect running workflows) and queries (inspect state without affecting execution).
 
 **Phases:**
 ```
@@ -128,16 +128,16 @@ Open http://localhost:8080 to see workflows in the Temporal Web UI.
 
 The Saga pattern shines when things go wrong. Consider this scenario:
 
-**Scenario: Installing a Sandevistan Prototype**
+**Scenario: Installing Experimental Cyberware**
 
-V walks into Viktor's clinic for experimental time-dilation cyberware. The process:
+A runner walks into a street clinic for experimental time-dilation cyberware. The process:
 
-1. ✅ **Fixer reserves the Sandevistan** - €$75,000 Militech prototype locked in
-2. ✅ **Ripperdoc appointment scheduled** - Viktor blocks 6 hours, deposit paid
-3. ✅ **Payment processed** - V's credstick debited, blockchain confirms
+1. ✅ **Fixer reserves the chrome** - €$75,000 military prototype locked in
+2. ✅ **Ripperdoc appointment scheduled** - Doc blocks 6 hours, deposit paid
+3. ✅ **Payment processed** - Runner's credstick debited, blockchain confirms
 4. ❌ **Neural integration FAILS** - Compatibility score 62% (needed 75%)
 
-**Without Sagas:** V is out €$75,000, has a seizure on the operating table, Viktor still has the appointment blocked, and the Sandevistan sits in limbo.
+**Without Sagas:** The runner is out €$75,000, has a seizure on the operating table, the doc still has the appointment blocked, and the chrome sits in limbo.
 
 **With Sagas:** The compensation chain fires:
 
@@ -162,17 +162,19 @@ SAGA COMPENSATION COMPLETE
   Net cost to runner: €$4,000.00
 ```
 
-V survives with minor neural scarring, gets most of their money back (minus fees for everyone's trouble), and the Sandevistan goes back to the fixer for the next runner brave (or foolish) enough to try.
+The runner survives with minor neural scarring, gets most of their money back (minus fees for everyone's trouble), and the chrome goes back to the fixer for the next runner brave enough to try.
 
 ## Why Temporal?
 
-Temporal makes implementing these patterns straightforward:
+Temporal handles the hard parts of distributed systems:
 
 - **Durability:** Workflow state survives crashes, restarts, even data center failures
 - **Visibility:** Full execution history for debugging and auditing
-- **Retries:** Automatic retry with exponential backoff
+- **Retries:** Automatic retry with exponential backoff—built in, not bolted on
 - **Signals/Queries:** External interaction with running workflows
 - **Compensations:** Clean rollback handling when things go sideways
+
+You write what looks like normal code. Temporal makes it reliable.
 
 ## Project Structure
 
@@ -202,8 +204,8 @@ night-city-services/
 ## References
 
 - [Temporal Documentation](https://docs.temporal.io/)
-- [Enterprise Integration Patterns](https://www.enterpriseintegrationpatterns.com/)
 - [Saga Pattern - Microsoft](https://docs.microsoft.com/en-us/azure/architecture/reference-architectures/saga/saga)
+- [Sagas (Original 1987 Paper)](https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf)
 
 ---
 
