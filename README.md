@@ -203,4 +203,4 @@ night-city-services/
 
 ---
 
-*"Never fade away."* — Johnny Silverhand
+*"The street finds its own uses for things."* — William Gibson, Neuromancer
