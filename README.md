@@ -104,16 +104,16 @@ pnpm run worker
 
 ```bash
 # Cyberware Installation Saga (may trigger compensation!)
-pnpm run client saga
+pnpm run saga
 
 # Data Broker Scatter-Gather
-pnpm run client scatter
+pnpm run scatter
 
 # Heist Process Manager
-pnpm run client heist
+pnpm run heist
 
 # Heist with Abort Signal
-pnpm run client heist-abort
+pnpm run heist:abort
 ```
 
 ### View in Temporal UI
@@ -173,7 +173,7 @@ Temporal makes implementing these patterns straightforward:
 ## Project Structure
 
 ```
-temporal-patterns/
+night-city-services/
 ├── src/
 │   ├── activities/
 │   │   ├── cyberware-activities.ts  # Four persistent systems
