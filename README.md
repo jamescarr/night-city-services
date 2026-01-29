@@ -2,7 +2,7 @@
 
 > *"In Night City, you can become anyone. Just need the right chrome, the right connections, and the balls to use them."* — Rogue Amendiares
 
-A Temporal-based demonstration of **enterprise integration patterns** set in a cyberpunk world inspired by Cyberpunk 2077, Shadowrun, and Johnny Mnemonic.
+A Temporal-based demonstration of **enterprise integration patterns** set in a cyberpunk world inspired by Cyberpunk 2077.
 
 ## The Domain
 
