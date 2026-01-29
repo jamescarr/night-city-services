@@ -1,8 +1,8 @@
-# Night City Chrome & Data Services
-
 <p align="center">
   <img src="dolphin-hacker.png" alt="Night City Chrome & Data Services" width="300">
 </p>
+
+# Night City Chrome & Data Services
 
 > *"In Night City, you can become anyone. Just need the right chrome, the right connections, and the balls to use them."* — Rogue Amendiares
 
