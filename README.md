@@ -22,7 +22,7 @@ Installing cyberware requires coordinating four independent systems, each with i
 |--------|---------|--------------|
 | **Fixer Inventory** | Reserve cyberware from the black market | Release reservation, pay restocking fee |
 | **Ripperdoc Scheduling** | Book surgery appointment | Cancel appointment, forfeit deposit |
-| **Credstick Ledger** | Process payment (blockchain-backed) | Issue refund (minus processing fee) |
+| **Credstick Ledger** | Process payment on Night City blockchain (Chain ID: 2077) | Issue refund on-chain (minus processing fee) |
 | **Neural Registry** | Track cyberware integration | Emergency stabilization |
 
 **The Problem:** If neural integration fails mid-surgery (and with experimental chrome, it often does), we need to:
@@ -94,7 +94,7 @@ planning → team_assembly → gear_acquisition → infiltration → execution �
 ### Setup
 
 ```bash
-# Start Temporal server
+# Start Temporal server + Night City blockchain
 docker compose up -d
 
 # Install dependencies
@@ -103,6 +103,14 @@ pnpm install
 # Start the worker
 pnpm run worker
 ```
+
+The docker-compose starts:
+- **Temporal Server** - Workflow orchestration
+- **Temporal UI** - http://localhost:8080
+- **PostgreSQL** - Temporal persistence
+- **Ganache** - Night City blockchain (Chain ID: 2077) on port 8545
+
+Credstick payments are recorded as actual Ethereum transactions on the local blockchain!
 
 ### Run Scenarios
 
@@ -182,10 +190,12 @@ You write what looks like normal code. Temporal makes it reliable.
 night-city-services/
 ├── src/
 │   ├── activities/
-│   │   ├── cyberware-activities.ts  # Four persistent systems
+│   │   ├── cyberware-activities.ts   # Four persistent systems
 │   │   ├── data-broker-activities.ts # Five data brokers
 │   │   ├── heist-activities.ts       # Heist phase management
 │   │   └── index.ts
+│   ├── services/
+│   │   └── blockchain.ts             # Night City blockchain (Ganache)
 │   ├── workflows/
 │   │   ├── cyberware-saga.ts         # Saga pattern
 │   │   ├── data-broker-scatter-gather.ts # Scatter-gather
@@ -196,7 +206,7 @@ night-city-services/
 │   ├── workers/
 │   │   └── index.ts
 │   └── client.ts                     # Demo runner
-├── docker-compose.yml
+├── docker-compose.yml                # Temporal + Blockchain
 ├── package.json
 └── README.md
 ```
