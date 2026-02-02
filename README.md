@@ -94,8 +94,12 @@ planning → team_assembly → gear_acquisition → infiltration → execution �
 ### Setup
 
 ```bash
-# Start Temporal server + Night City blockchain
+# Start Temporal server + Fixer API + Night City blockchain
 docker compose up -d
+
+# Register custom search attributes (one-time setup)
+# This enables semantic "Reset to Event" in the Temporal UI
+./scripts/setup-search-attributes.sh
 
 # Install dependencies
 pnpm install

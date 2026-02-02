@@ -35,7 +35,7 @@
  * most importantly - the runner survives to chrome another day.
  */
 
-import { proxyActivities, ApplicationFailure } from '@temporalio/workflow';
+import { proxyActivities, ApplicationFailure, upsertSearchAttributes } from '@temporalio/workflow';
 import type * as activities from '../activities/cyberware-activities';
 import type {
   CyberwareInstallationRequest,
@@ -110,6 +110,9 @@ export async function cyberwareInstallationSaga(
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 1: Reserve cyberware from fixer's inventory
     // ═══════════════════════════════════════════════════════════════════════
+    upsertSearchAttributes({
+      SagaStep: ['1-ReserveCyberware'],
+    });
     console.log('\n▶ STEP 1: Reserving cyberware from fixer...');
     
     const reservation = await reserveCyberware(request);
@@ -137,6 +140,9 @@ export async function cyberwareInstallationSaga(
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 2: Schedule ripperdoc appointment
     // ═══════════════════════════════════════════════════════════════════════
+    upsertSearchAttributes({
+      SagaStep: ['2-ScheduleRipperdoc'],
+    });
     console.log('\n▶ STEP 2: Scheduling ripperdoc appointment...');
     
     const appointment = await scheduleRipperdocAppointment(request, reservation);
@@ -166,6 +172,9 @@ export async function cyberwareInstallationSaga(
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 3: Process payment
     // ═══════════════════════════════════════════════════════════════════════
+    upsertSearchAttributes({
+      SagaStep: ['3-ProcessPayment'],
+    });
     console.log('\n▶ STEP 3: Processing credstick payment...');
     
     const payment = await processCredstickPayment(request, reservation, appointment);
@@ -191,6 +200,9 @@ export async function cyberwareInstallationSaga(
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 4: Perform neural integration (THE DANGEROUS PART)
     // ═══════════════════════════════════════════════════════════════════════
+    upsertSearchAttributes({
+      SagaStep: ['4-NeuralIntegration'],
+    });
     console.log('\n▶ STEP 4: Performing neural integration...');
     console.log('  ⚠ This is where things can go wrong...');
     
@@ -206,6 +218,9 @@ export async function cyberwareInstallationSaga(
     // ═══════════════════════════════════════════════════════════════════════
     // SUCCESS: Send confirmation
     // ═══════════════════════════════════════════════════════════════════════
+    upsertSearchAttributes({
+      SagaStep: ['5-Success-SendConfirmation'],
+    });
     console.log('\n▶ Sending confirmation to runner...');
     
     await sendInstallationConfirmation(request, integration);
@@ -226,6 +241,9 @@ export async function cyberwareInstallationSaga(
     // ═══════════════════════════════════════════════════════════════════════
     // FAILURE: Execute compensations in reverse order
     // ═══════════════════════════════════════════════════════════════════════
+    upsertSearchAttributes({
+      SagaStep: ['FAILED-ExecutingCompensations'],
+    });
     
     const errorMessage = error instanceof Error ? error.message : String(error);
     result.failureReason = errorMessage;
