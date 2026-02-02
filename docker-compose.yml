@@ -1,5 +1,5 @@
 services:
-  # Fixer's Inventory API (FastAPI)
+  # Fixer's Inventory API (FastAPI - Python)
   # Manages cyberware reservations - simulates flaky service with 429s
   fixer-api:
     build: ./services/fixer-api
@@ -8,6 +8,19 @@ services:
       - "8000:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Ripperdoc Scheduling API (Elixir)
+  # Manages street surgeon appointments
+  ripperdoc-api:
+    build: ./services/ripperdoc-api
+    container_name: night-city-ripperdoc-api
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 5s
       timeout: 3s
       retries: 5

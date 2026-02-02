@@ -43,6 +43,11 @@ import {
   releaseReservation
 } from '../services/fixer-api.js';
 
+import {
+  createAppointment,
+  cancelAppointment as cancelRipperdocApiAppointment
+} from '../services/ripperdoc-api.js';
+
 // ============================================================================
 // SIMULATED PERSISTENT STATE (For services without external APIs)
 // ============================================================================
@@ -311,15 +316,15 @@ export async function refundCredstickPayment(
 }
 
 // ============================================================================
-// RIPPERDOC SCHEDULING SYSTEM
+// RIPPERDOC SCHEDULING SYSTEM (External Elixir API)
 // ============================================================================
 
 /**
  * Schedule an appointment with a ripperdoc.
  * 
- * This creates a PERSISTENT appointment in the ripperdoc's calendar.
- * The doc blocks off time and prepares for the surgery.
- * If installation is cancelled, we MUST call cancelAppointment.
+ * This calls the Ripperdoc Scheduling API (Elixir) to create a PERSISTENT
+ * appointment. The doc blocks off time and prepares for the surgery.
+ * If installation is cancelled, we MUST call cancelRipperdocAppointment.
  */
 export async function scheduleRipperdocAppointment(
   request: CyberwareInstallationRequest,
@@ -327,52 +332,44 @@ export async function scheduleRipperdocAppointment(
 ): Promise<RipperdocAppointment> {
   console.log(`[RIPPERDOC] Scheduling appointment for ${request.runner.handle}`);
   
-  await sleep(randomBetween(100, 250));
-  
-  // Select ripperdoc based on cyberware difficulty
-  const ripperdoc = selectRipperdoc(request.cyberware.installDifficulty, request.preferredRipperdoc);
-  
-  // Calculate timing
-  const scheduledTime = new Date();
-  if (request.urgency === 'standard') {
-    scheduledTime.setHours(scheduledTime.getHours() + randomBetween(24, 72));
-  } else if (request.urgency === 'rush') {
-    scheduledTime.setHours(scheduledTime.getHours() + randomBetween(4, 12));
-  } else {
-    scheduledTime.setHours(scheduledTime.getHours() + 1); // Emergency = now-ish
-  }
+  // Call the Elixir Ripperdoc API
+  const apiAppointment = await createAppointment({
+    runnerId: request.runner.runnerId,
+    runnerHandle: request.runner.handle,
+    cyberwareName: request.cyberware.name,
+    cyberwareGrade: request.cyberware.grade,
+    preferredRipperdoc: request.preferredRipperdoc,
+  });
   
   // Estimate duration based on difficulty
   const baseDuration = request.cyberware.installDifficulty === 'routine' ? 60 :
                        request.cyberware.installDifficulty === 'complex' ? 180 : 360;
   
-  // Deposit required (non-refundable if no-show)
-  const deposit = calculateSurgeryFee(request.cyberware, 'standard') * 0.2;
-  
+  // Map API response to our domain type
   const appointment: RipperdocAppointment = {
-    appointmentId: `APT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    ripperdocId: ripperdoc.id,
-    ripperdocName: ripperdoc.name,
-    clinicLocation: ripperdoc.location,
-    runnerId: request.runner.runnerId,
+    appointmentId: apiAppointment.appointmentId,
+    ripperdocId: apiAppointment.ripperdocId,
+    ripperdocName: apiAppointment.ripperdocName,
+    clinicLocation: apiAppointment.location,
+    runnerId: apiAppointment.runnerId,
     cyberwareId: request.cyberware.cyberwareId,
-    scheduledTime,
+    scheduledTime: apiAppointment.scheduledTime,
     estimatedDuration: baseDuration,
     status: 'scheduled',
-    depositPaid: deposit,
-    installationType: request.urgency === 'emergency' ? 'back_alley' : 'standard'
+    depositPaid: apiAppointment.depositPaid,
+    installationType: apiAppointment.installationType as 'standard' | 'precision' | 'quick' | 'back_alley'
   };
   
-  // Persist to appointment book
+  // Cache locally for quick lookups
   appointmentBook.set(appointment.appointmentId, appointment);
   
   console.log(
-    `[RIPPERDOC] ✓ Appointment scheduled with ${ripperdoc.name}. ` +
-    `Location: ${ripperdoc.location}`
+    `[RIPPERDOC] ✓ Appointment scheduled with ${appointment.ripperdocName}. ` +
+    `Location: ${appointment.clinicLocation}`
   );
   console.log(
-    `[RIPPERDOC]   Time: ${scheduledTime.toISOString()}, ` +
-    `Duration: ${baseDuration}min, Deposit: €$${deposit.toFixed(2)}`
+    `[RIPPERDOC]   Time: ${appointment.scheduledTime.toISOString()}, ` +
+    `Duration: ${baseDuration}min, Deposit: €$${appointment.depositPaid.toFixed(2)}`
   );
   
   return appointment;
@@ -381,8 +378,7 @@ export async function scheduleRipperdocAppointment(
 /**
  * COMPENSATION: Cancel a ripperdoc appointment.
  * 
- * Called when installation is aborted. The doc might not be happy,
- * and too many cancellations could get you blacklisted.
+ * Called when installation is aborted. Calls the Elixir API to cancel.
  */
 export async function cancelRipperdocAppointment(
   appointmentId: string,
@@ -390,38 +386,35 @@ export async function cancelRipperdocAppointment(
 ): Promise<AppointmentCancellation> {
   console.log(`[RIPPERDOC] Cancelling appointment ${appointmentId}. Reason: ${reason}`);
   
-  await sleep(randomBetween(50, 150));
+  // Get cached appointment for local data
+  const localAppointment = appointmentBook.get(appointmentId);
   
-  const appointment = appointmentBook.get(appointmentId);
-  if (!appointment) {
-    throw new Error(`[RIPPERDOC] Appointment ${appointmentId} not found. Wrong clinic?`);
+  // Call the Elixir Ripperdoc API to cancel
+  const apiResult = await cancelRipperdocApiAppointment(appointmentId, reason);
+  
+  // Update local cache
+  if (localAppointment) {
+    localAppointment.status = 'cancelled';
   }
   
-  appointment.status = 'cancelled';
-  
-  // Check if we're cancelling too close to the appointment
-  const hoursUntilAppointment = (appointment.scheduledTime.getTime() - Date.now()) / (1000 * 60 * 60);
-  const depositRefunded = hoursUntilAppointment > 12; // Only refund if > 12 hours notice
-  const cancellationFee = depositRefunded ? 0 : appointment.depositPaid;
-  
-  // Track cancellation history (too many = blacklist)
-  const blacklisted = Math.random() < 0.05; // 5% chance of pissing off the doc
+  // 5% chance of pissing off the doc (local logic for demo)
+  const blacklisted = Math.random() < 0.05;
   
   const cancellation: AppointmentCancellation = {
-    appointmentId,
-    cancelledAt: new Date(),
-    reason,
-    depositRefunded,
-    cancellationFee,
+    appointmentId: apiResult.appointmentId,
+    cancelledAt: apiResult.cancelledAt,
+    reason: apiResult.reason,
+    depositRefunded: apiResult.depositRefunded,
+    cancellationFee: apiResult.depositRefunded ? 0 : (localAppointment?.depositPaid || 0),
     ripperdocBlacklisted: blacklisted
   };
   
   console.log(
-    `[RIPPERDOC] ✓ Appointment cancelled. ` +
-    `Deposit ${depositRefunded ? 'refunded' : 'forfeited'}: €$${appointment.depositPaid.toFixed(2)}`
+    `[RIPPERDOC] ✓ Appointment cancelled via API. ` +
+    `Deposit ${cancellation.depositRefunded ? 'refunded' : 'forfeited'}`
   );
   if (blacklisted) {
-    console.log(`[RIPPERDOC] ⚠ ${appointment.ripperdocName} has blacklisted you. Find another doc.`);
+    console.log(`[RIPPERDOC] ⚠ You've been blacklisted. Find another doc.`);
   }
   
   return cancellation;
