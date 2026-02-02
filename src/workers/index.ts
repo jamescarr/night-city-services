@@ -4,8 +4,13 @@
  * This worker processes activities for all three workflow patterns.
  */
 
-import { NativeConnection, Worker } from '@temporalio/worker';
-import * as activities from '../activities';
+import { NativeConnection, Worker, bundleWorkflowCode } from '@temporalio/worker';
+import * as activities from '../activities/index.js';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const TASK_QUEUE = 'night-city-services';
 
@@ -20,11 +25,17 @@ async function run() {
   console.log('  • dataBrokerScatterGather - Scatter-gather pattern');
   console.log('  • heistProcessManager - Process manager with signals\n');
 
+  console.log('Bundling workflows...');
+  const workflowBundle = await bundleWorkflowCode({
+    workflowsPath: path.resolve(__dirname, '../workflows/index.ts'),
+  });
+  console.log('Workflows bundled successfully.\n');
+
   const connection = await NativeConnection.connect();
   
   const worker = await Worker.create({
     connection,
-    workflowsPath: require.resolve('../workflows'),
+    workflowBundle,
     activities,
     taskQueue: TASK_QUEUE,
   });
