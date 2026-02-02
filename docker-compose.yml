@@ -25,6 +25,8 @@ services:
       - --wallet.defaultBalance=1000000
       - --miner.blockGasLimit=30000000
       - --chain.hardfork=london
+      # Use Hardhat's default mnemonic so our private keys match the funded accounts
+      - --wallet.mnemonic=test test test test test test test test test test test junk
       - --database.dbPath=/data
     volumes:
       - blockchain-data:/data

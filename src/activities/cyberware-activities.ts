@@ -198,6 +198,7 @@ export async function processCredstickPayment(
   
   try {
     console.log(`[CREDSTICK LEDGER] Broadcasting to Night City blockchain (Chain ID: 2077)...`);
+    console.log(`[CREDSTICK LEDGER] Amount: €$${totalAmount.toFixed(2)} from Runner V to Fixer Escrow`);
     blockchainResult = await recordPayment(
       ACCOUNTS.RUNNER_V,      // From: Runner's wallet
       ACCOUNTS.FIXER_ESCROW,  // To: Fixer escrow
@@ -207,8 +208,10 @@ export async function processCredstickPayment(
     console.log(`[CREDSTICK LEDGER] ⛓ Transaction mined in block ${blockchainResult.blockNumber}`);
     console.log(`[CREDSTICK LEDGER] ⛓ Gas used: ${blockchainResult.gasUsed}`);
   } catch (error) {
-    console.log(`[CREDSTICK LEDGER] ⚠ Blockchain error: ${error}`);
-    throw new Error(`[CREDSTICK LEDGER] Blockchain transaction failed. Network issues.`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.log(`[CREDSTICK LEDGER] ⚠ Blockchain error: ${errorMessage}`);
+    // Re-throw with the actual error for better debugging
+    throw new Error(`[CREDSTICK LEDGER] Blockchain transaction failed: ${errorMessage}`);
   }
   
   const transaction: CredstickTransaction = {
