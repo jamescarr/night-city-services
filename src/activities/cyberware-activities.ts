@@ -36,16 +36,18 @@ import {
   recordRefund,
   isBlockchainConnected,
   ACCOUNTS
-} from '../services/blockchain';
+} from '../services/blockchain.js';
+
+import {
+  createReservation,
+  releaseReservation
+} from '../services/fixer-api.js';
 
 // ============================================================================
-// SIMULATED PERSISTENT STATE (In reality, these would be separate databases)
+// SIMULATED PERSISTENT STATE (For services without external APIs)
 // ============================================================================
 
-// Fixer inventory database simulation
-const fixerInventory: Map<string, { quantity: number; reservations: Map<string, InventoryReservation> }> = new Map();
-
-// Credstick ledger simulation
+// Credstick ledger simulation (blockchain handles persistence)
 const credstickLedger: Map<string, CredstickTransaction> = new Map();
 
 // Ripperdoc appointment book simulation
@@ -68,61 +70,55 @@ async function ensureBlockchainConnection(): Promise<void> {
 }
 
 // ============================================================================
-// FIXER'S INVENTORY SYSTEM
+// FIXER'S INVENTORY SYSTEM (External API)
 // ============================================================================
 
 /**
  * Reserve cyberware from a fixer's inventory.
  * 
- * This creates a PERSISTENT reservation in the fixer's system.
- * The cyberware is held for this runner and won't be sold to anyone else.
- * If the installation fails, we MUST call releaseInventory to free it up.
+ * This calls the Fixer's Inventory API to create a PERSISTENT reservation.
+ * The API simulates a flaky service that rate-limits requests (429s) for the
+ * first 3 attempts, demonstrating Temporal's automatic retry capabilities.
+ * 
+ * If the installation fails, we MUST call releaseCyberwareReservation to free it up.
+ * 
+ * Note: We let errors propagate naturally - Temporal's retry policy handles
+ * transient failures. No need to catch and re-throw.
  */
 export async function reserveCyberware(
   request: CyberwareInstallationRequest
 ): Promise<InventoryReservation> {
   console.log(`[FIXER INVENTORY] Runner ${request.runner.handle} requesting ${request.cyberware.name}`);
   
-  // Simulate network latency to fixer's system
-  await sleep(randomBetween(100, 300));
-  
-  // Determine which fixer has the goods (based on manufacturer)
-  const fixer = selectFixer(request.cyberware.manufacturer);
-  
-  // Check availability (10% chance of stock issues)
-  if (Math.random() < 0.10) {
-    throw new Error(
-      `[FIXER INVENTORY] ${fixer.name} is out of ${request.cyberware.name}. ` +
-      `Check back next week, choom, or try another fixer.`
-    );
-  }
-  
-  // Calculate price with reputation discount
-  const discount = Math.min(request.runner.reputation * 0.5, 20); // Max 20% discount
-  const finalPrice = request.cyberware.basePrice * (1 - discount / 100);
-  
-  const reservation: InventoryReservation = {
-    reservationId: `RSV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    cyberwareId: request.cyberware.cyberwareId,
-    fixerId: fixer.id,
-    fixerName: fixer.name,
+  // Call the Fixer API - let errors propagate for Temporal to retry
+  const apiReservation = await createReservation({
     runnerId: request.runner.runnerId,
-    reservedAt: new Date(),
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-    status: 'active',
-    unitPrice: finalPrice,
-    quantity: 1
+    runnerHandle: request.runner.handle,
+    cyberwareId: request.cyberware.cyberwareId,
+    cyberwareName: request.cyberware.name,
+    manufacturer: request.cyberware.manufacturer,
+    basePrice: request.cyberware.basePrice,
+    runnerReputation: request.runner.reputation,
+    requestId: request.requestId
+  });
+  
+  // Map API response to our domain type
+  const reservation: InventoryReservation = {
+    reservationId: apiReservation.reservationId,
+    cyberwareId: apiReservation.cyberwareId,
+    fixerId: apiReservation.fixerId,
+    fixerName: apiReservation.fixerName,
+    runnerId: apiReservation.runnerId,
+    reservedAt: apiReservation.reservedAt,
+    expiresAt: apiReservation.expiresAt,
+    status: apiReservation.status,
+    unitPrice: apiReservation.unitPrice,
+    quantity: apiReservation.quantity
   };
   
-  // Persist to fixer's database
-  if (!fixerInventory.has(fixer.id)) {
-    fixerInventory.set(fixer.id, { quantity: 10, reservations: new Map() });
-  }
-  fixerInventory.get(fixer.id)!.reservations.set(reservation.reservationId, reservation);
-  
   console.log(
-    `[FIXER INVENTORY] ✓ Reserved ${request.cyberware.name} from ${fixer.name}. ` +
-    `Reservation: ${reservation.reservationId}, Price: €$${finalPrice.toFixed(2)}`
+    `[FIXER INVENTORY] ✓ Reserved ${request.cyberware.name} from ${reservation.fixerName}. ` +
+    `Reservation: ${reservation.reservationId}, Price: €$${reservation.unitPrice.toFixed(2)}`
   );
   
   return reservation;
@@ -131,8 +127,8 @@ export async function reserveCyberware(
 /**
  * COMPENSATION: Release a cyberware reservation back to the fixer.
  * 
- * Called when installation fails. The cyberware goes back to inventory,
- * though the fixer might charge a restocking fee for the inconvenience.
+ * Called when installation fails. Calls the Fixer's Inventory API to
+ * release the reservation. The fixer charges a restocking fee.
  */
 export async function releaseCyberwareReservation(
   reservationId: string,
@@ -140,38 +136,21 @@ export async function releaseCyberwareReservation(
 ): Promise<InventoryReleaseResult> {
   console.log(`[FIXER INVENTORY] Releasing reservation ${reservationId}. Reason: ${reason}`);
   
-  await sleep(randomBetween(50, 150));
+  const apiResult = await releaseReservation(reservationId, reason);
   
-  // Find and update the reservation
-  for (const [fixerId, inventory] of fixerInventory) {
-    const reservation = inventory.reservations.get(reservationId);
-    if (reservation) {
-      reservation.status = 'released';
-      
-      // Fixer charges restocking fee for cancelled installations (they're not happy)
-      const restockFee = reason === 'installation_failed' 
-        ? reservation.unitPrice * 0.15 // 15% fee for failed installs
-        : reason === 'cancelled' 
-          ? reservation.unitPrice * 0.10 // 10% for cancellations
-          : 0;
-      
-      const result: InventoryReleaseResult = {
-        reservationId,
-        releasedAt: new Date(),
-        reason,
-        restockFee
-      };
-      
-      console.log(
-        `[FIXER INVENTORY] ✓ Released reservation. ` +
-        `Restocking fee: €$${restockFee.toFixed(2)}`
-      );
-      
-      return result;
-    }
-  }
+  const result: InventoryReleaseResult = {
+    reservationId: apiResult.reservationId,
+    releasedAt: apiResult.releasedAt,
+    reason: apiResult.reason as InventoryReleaseResult['reason'],
+    restockFee: apiResult.restockFee
+  };
   
-  throw new Error(`[FIXER INVENTORY] Reservation ${reservationId} not found. Fixer's pissed.`);
+  console.log(
+    `[FIXER INVENTORY] ✓ Released reservation. ` +
+    `Restocking fee: €$${result.restockFee?.toFixed(2) || '0.00'}`
+  );
+  
+  return result;
 }
 
 // ============================================================================

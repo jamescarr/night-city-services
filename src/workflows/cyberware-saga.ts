@@ -46,6 +46,8 @@ import type {
 } from '../shared/types';
 
 // Configure activities with retry policies
+// The Fixer API returns 429 for the first 3 attempts with a 10s retry window,
+// so we configure retries to handle this gracefully.
 const {
   reserveCyberware,
   releaseCyberwareReservation,
@@ -58,12 +60,12 @@ const {
   sendInstallationConfirmation,
   sendInstallationFailureNotification
 } = proxyActivities<typeof activities>({
-  startToCloseTimeout: '30 seconds',
+  startToCloseTimeout: '2 minutes',  // Allow time for retries
   retry: {
-    initialInterval: '1 second',
-    backoffCoefficient: 2,
-    maximumAttempts: 3,
-    maximumInterval: '30 seconds',
+    initialInterval: '10 seconds',   // Match the Fixer API's Retry-After
+    backoffCoefficient: 1,           // Fixed interval (no exponential backoff)
+    maximumAttempts: 5,              // 3 failures + 1 success + buffer
+    maximumInterval: '15 seconds',
     // Don't retry on business logic failures
     nonRetryableErrorTypes: [
       'InsufficientFunds',

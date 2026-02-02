@@ -108,9 +108,10 @@ The docker-compose starts:
 - **Temporal Server** - Workflow orchestration
 - **Temporal UI** - http://localhost:8080
 - **PostgreSQL** - Temporal persistence
+- **Fixer API** - FastAPI service for inventory (port 8000) - **simulates flaky service!**
 - **Ganache** - Night City blockchain (Chain ID: 2077) on port 8545
 
-Credstick payments are recorded as actual Ethereum transactions on the local blockchain!
+The Fixer API returns **429 (rate limit)** for the first 3 requests before succeeding, demonstrating Temporal's automatic retry capabilities. Credstick payments are recorded as actual Ethereum transactions on the local blockchain!
 
 ### Run Scenarios
 
@@ -158,7 +159,7 @@ pnpm run saga
 
 #### Happy Path (Success)
 
-When neural integration succeeds, you'll see all four systems complete:
+When neural integration succeeds, you'll see all four systems complete. Note the **retries** on the Fixer API - it returns 429s for the first 3 attempts:
 
 ```
 ═══════════════════════════════════════════════════════════════════════
@@ -167,7 +168,17 @@ Runner: V | Grade: milspec
 ═══════════════════════════════════════════════════════════════════════
 
 ▶ STEP 1: Reserving cyberware from fixer...
-[FIXER INVENTORY] ✓ Reserved from Wakako Okada. Reservation: RSV-1706531234
+[FIXER INVENTORY] Calling Fixer API at http://localhost:8000...
+[FIXER INVENTORY] ⚠ Rate limited by fixer. Retry after 10s
+[FIXER INVENTORY]   Too many requests, choom. Cool down. (Attempt 1/3)
+  ... Temporal automatically retries ...
+[FIXER INVENTORY] ⚠ Rate limited by fixer. Retry after 10s
+[FIXER INVENTORY]   Too many requests, choom. Cool down. (Attempt 2/3)
+  ... Temporal automatically retries ...
+[FIXER INVENTORY] ⚠ Rate limited by fixer. Retry after 10s
+[FIXER INVENTORY]   Too many requests, choom. Cool down. (Attempt 3/3)
+  ... Temporal automatically retries ...
+[FIXER INVENTORY] ✓ Reserved Sandevistan Prototype from Wakako Okada. RSV-1706531234
 
 ▶ STEP 2: Scheduling ripperdoc appointment...
 [RIPPERDOC] ✓ Appointment with Viktor Vektor. Location: Watson, Little China
@@ -314,12 +325,14 @@ You write what looks like normal code. Temporal makes it reliable.
 night-city-services/
 ├── src/
 │   ├── activities/
-│   │   ├── cyberware-activities.ts   # Four persistent systems
+│   │   ├── cyberware-activities.ts   # Calls Fixer API + other systems
 │   │   ├── data-broker-activities.ts # Five data brokers
 │   │   ├── heist-activities.ts       # Heist phase management
 │   │   └── index.ts
 │   ├── services/
-│   │   └── blockchain.ts             # Night City blockchain (Ganache)
+│   │   ├── fixer-api.ts              # Fixer Inventory API client
+│   │   ├── blockchain.ts             # Night City blockchain client (ethers.js)
+│   │   └── index.ts                  # Service exports
 │   ├── workflows/
 │   │   ├── cyberware-saga.ts         # Saga pattern
 │   │   ├── data-broker-scatter-gather.ts # Scatter-gather
@@ -330,7 +343,12 @@ night-city-services/
 │   ├── workers/
 │   │   └── index.ts
 │   └── client.ts                     # Demo runner
-├── docker-compose.yml                # Temporal + Blockchain
+├── services/
+│   └── fixer-api/                    # FastAPI service (simulates flaky API)
+│       ├── main.py
+│       ├── requirements.txt
+│       └── Dockerfile
+├── docker-compose.yml                # Temporal + Fixer API + Blockchain
 ├── package.json
 └── README.md
 ```

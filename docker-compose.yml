@@ -1,4 +1,17 @@
 services:
+  # Fixer's Inventory API (FastAPI)
+  # Manages cyberware reservations - simulates flaky service with 429s
+  fixer-api:
+    build: ./services/fixer-api
+    container_name: night-city-fixer-api
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   # Night City Blockchain (Ganache - local Ethereum)
   # The credstick ledger runs on this chain
   blockchain:
