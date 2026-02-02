@@ -1,13 +1,19 @@
 /**
  * Night City Chrome & Data Services - CLI Client
  * 
- * Run different scenarios to demonstrate enterprise integration patterns.
+ * Run different scenarios to demonstrate Temporal workflows.
  * 
  * Usage:
- *   npx ts-node src/client.ts saga          # Cyberware installation saga (may rollback!)
- *   npx ts-node src/client.ts scatter       # Data broker scatter-gather
- *   npx ts-node src/client.ts heist         # Heist process manager
- *   npx ts-node src/client.ts heist-abort   # Heist with abort signal
+ *   pnpm run saga          # Cyberware installation saga (~25% chance of rollback!)
+ *   pnpm run scatter       # Data broker scatter-gather (parallel queries)
+ *   pnpm run heist         # Heist process manager (full run)
+ *   pnpm run heist:abort   # Heist with abort signal mid-operation
+ * 
+ * Or directly:
+ *   pnpm run client saga
+ *   pnpm run client scatter
+ *   pnpm run client heist
+ *   pnpm run client heist-abort
  */
 
 import { Connection, Client } from '@temporalio/client';

@@ -114,11 +114,19 @@ Credstick payments are recorded as actual Ethereum transactions on the local blo
 
 ### Run Scenarios
 
+Open **two terminals**:
+
+**Terminal 1 - Worker** (keep running):
 ```bash
-# Cyberware Installation Saga (may trigger compensation!)
+pnpm run worker
+```
+
+**Terminal 2 - Run demos**:
+```bash
+# Cyberware Installation Saga
 pnpm run saga
 
-# Data Broker Scatter-Gather
+# Data Broker Scatter-Gather  
 pnpm run scatter
 
 # Heist Process Manager
@@ -130,47 +138,163 @@ pnpm run heist:abort
 
 ### View in Temporal UI
 
-Open http://localhost:8080 to see workflows in the Temporal Web UI.
+Open http://localhost:8080 to see workflows in the Temporal Web UI. You can inspect:
+- Workflow execution history
+- Activity inputs/outputs
+- Retry attempts
+- Compensation steps (on failures)
+
+---
+
+## Demo Guide
+
+### Demo 1: Cyberware Installation Saga
+
+The saga demo uses **experimental military-grade cyberware** with a ~25% failure rate at neural integration. Run it multiple times to see both outcomes.
+
+```bash
+pnpm run saga
+```
+
+#### Happy Path (Success)
+
+When neural integration succeeds, you'll see all four systems complete:
+
+```
+═══════════════════════════════════════════════════════════════════════
+CYBERWARE INSTALLATION SAGA - Sandevistan Prototype
+Runner: V | Grade: milspec
+═══════════════════════════════════════════════════════════════════════
+
+▶ STEP 1: Reserving cyberware from fixer...
+[FIXER INVENTORY] ✓ Reserved from Wakako Okada. Reservation: RSV-1706531234
+
+▶ STEP 2: Scheduling ripperdoc appointment...
+[RIPPERDOC] ✓ Appointment with Viktor Vektor. Location: Watson, Little China
+
+▶ STEP 3: Processing credstick payment...
+[CREDSTICK LEDGER] Broadcasting to Night City blockchain (Chain ID: 2077)...
+[CREDSTICK LEDGER] ⛓ Transaction mined in block 42
+[CREDSTICK LEDGER] ✓ Payment processed. Amount: €$78,125.00
+[CREDSTICK LEDGER]   Blockchain TX: 0x8f3a2b1c4d5e6f...
+
+▶ STEP 4: Performing neural integration...
+[NEURAL REGISTRY] Beginning neural integration for V
+[NEURAL REGISTRY] ✓ Integration successful! Compatibility: 82%
+
+═══════════════════════════════════════════════════════════════════════
+✓ SAGA COMPLETED SUCCESSFULLY
+  Total cost: €$78,125.00
+  Neural capacity remaining: 50%
+═══════════════════════════════════════════════════════════════════════
+```
+
+#### Rollback Path (Failure + Compensation)
+
+When neural integration fails, the saga executes compensations in **reverse order (LIFO)**:
+
+```
+▶ STEP 4: Performing neural integration...
+[NEURAL REGISTRY] ✗ INTEGRATION FAILED! Compatibility: 62% (needed 75%)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+✗ SAGA FAILED - INITIATING COMPENSATION
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+⚠ EMERGENCY: Neural integration failure detected
+[NEURAL REGISTRY] ✓ Stabilization successful. Neural damage: 5%
+
+▶ Executing compensation chain (LIFO order)...
+
+  [1/3] Refund credstick payment
+  [CREDSTICK LEDGER] Broadcasting refund to Night City blockchain...
+  [CREDSTICK LEDGER] ⛓ Refund TX mined in block 43
+  [CREDSTICK LEDGER] ✓ Refund processed on-chain. €$74,218.75
+
+  [2/3] Cancel ripperdoc appointment
+  [RIPPERDOC] ✓ Appointment cancelled. Deposit forfeited.
+
+  [3/3] Release inventory reservation
+  [FIXER INVENTORY] ✓ Released. Restocking fee: €$11,718.75
+
+═══════════════════════════════════════════════════════════════════════
+SAGA COMPENSATION COMPLETE
+  Total charged: €$78,125.00
+  Total refunded: €$74,218.75
+  Net cost to runner: €$3,906.25
+═══════════════════════════════════════════════════════════════════════
+```
+
+Both the payment AND refund are recorded on the blockchain. Check http://localhost:8545 with any Ethereum tooling to verify!
+
+### Demo 2: Data Broker Scatter-Gather
+
+Queries 5 data brokers in parallel and aggregates results:
+
+```bash
+pnpm run scatter
+```
+
+```
+▶ SCATTER: Querying data broker network...
+[AFTERLIFE] Quote: €$8,240, 36h delivery, 95% success
+[NETWATCH BLACK MARKET] Connection terminated unexpectedly.
+[ARASAKA SERVICES] Quote: €$12,480, 72h delivery, 98% success
+[VOODOO BOYS] Quote: €$3,920, 28h delivery, 88% success
+[MILITECH ACQ] Quote: €$5,880, 16h delivery, 85% success
+
+✓ SCATTER complete: 4 responded, 1 unavailable
+
+▶ GATHER: Aggregating broker responses...
+
+🏆 RECOMMENDATIONS:
+  💰 Best Price: Voodoo Boys Data Haven (€$3,920)
+  ⚡ Fastest: Militech Acquisitions (16h)
+  🎯 Most Reliable: Arasaka External Services (98%)
+```
+
+### Demo 3: Heist Process Manager
+
+Run a full heist through all phases:
+
+```bash
+pnpm run heist
+```
+
+Or run with an abort signal mid-operation:
+
+```bash
+pnpm run heist:abort
+```
+
+The abort demo sends a `confirmTeamReady` signal, waits for the heist to progress, then sends an `abortHeist` signal—demonstrating how Temporal workflows can respond to external events.
+
+---
 
 ## The True Beauty of Sagas
 
-The Saga pattern shines when things go wrong. Consider this scenario:
-
-**Scenario: Installing Experimental Cyberware**
-
-A runner walks into a street clinic for experimental time-dilation cyberware. The process:
-
-1. ✅ **Fixer reserves the chrome** - €$75,000 military prototype locked in
-2. ✅ **Ripperdoc appointment scheduled** - Doc blocks 6 hours, deposit paid
-3. ✅ **Payment processed** - Runner's credstick debited, blockchain confirms
-4. ❌ **Neural integration FAILS** - Compatibility score 62% (needed 75%)
-
-**Without Sagas:** The runner is out €$75,000, has a seizure on the operating table, the doc still has the appointment blocked, and the chrome sits in limbo.
-
-**With Sagas:** The compensation chain fires:
+The Saga pattern shines when things go wrong. Each step in the saga has a **compensating action** that can undo its effects. If a later step fails, compensations run in reverse order to restore system consistency.
 
 ```
-[NEURAL REGISTRY] ⚠ EMERGENCY STABILIZATION for runner RUN-001
-[NEURAL REGISTRY] Flooding system with neural suppressants...
-[NEURAL REGISTRY] Disconnecting failed cyberware interfaces...
-[NEURAL REGISTRY] ✓ Stabilization successful. Neural damage: 5%
-
-[COMPENSATION 1/3] Refund credstick payment
-[CREDSTICK LEDGER] ✓ Refund processed. Refunded: €$74,125.00, Fee kept: €$3,901.32
-
-[COMPENSATION 2/3] Cancel ripperdoc appointment  
-[RIPPERDOC] ✓ Appointment cancelled. Deposit forfeited: €$400.00
-
-[COMPENSATION 3/3] Release inventory reservation
-[FIXER INVENTORY] ✓ Released reservation. Restocking fee: €$11,250.00
-
-SAGA COMPENSATION COMPLETE
-  Total charged: €$78,125.00
-  Total refunded: €$74,125.00
-  Net cost to runner: €$4,000.00
+┌─────────────────────────────────────────────────────────────────────┐
+│                    COMPENSATION STACK (LIFO)                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  Step 1: Reserve Cyberware    ──►  Compensation: Release + Fee     │
+│  Step 2: Schedule Appointment ──►  Compensation: Cancel + Forfeit  │
+│  Step 3: Process Payment      ──►  Compensation: Refund On-Chain   │
+│  Step 4: Neural Integration   ──►  (No undo - but stabilize first) │
+│                                                                     │
+│  On failure at Step 4:                                              │
+│    1. Emergency stabilization (save the runner!)                    │
+│    2. Execute Compensation 3 (refund)                               │
+│    3. Execute Compensation 2 (cancel appointment)                   │
+│    4. Execute Compensation 1 (release inventory)                    │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-The runner survives with minor neural scarring, gets most of their money back (minus fees for everyone's trouble), and the chrome goes back to the fixer for the next runner brave enough to try.
+**Key insight:** The ~25% failure rate isn't a bug—it's the point. Real distributed systems fail. The saga pattern ensures that when they do, you can recover gracefully instead of leaving data in an inconsistent state across multiple services.
 
 ## Why Temporal?
 
