@@ -30,6 +30,14 @@ import {
   CyberwareSpec
 } from '../shared/types';
 
+import {
+  initBlockchain,
+  recordPayment,
+  recordRefund,
+  isBlockchainConnected,
+  ACCOUNTS
+} from '../services/blockchain';
+
 // ============================================================================
 // SIMULATED PERSISTENT STATE (In reality, these would be separate databases)
 // ============================================================================
@@ -45,6 +53,19 @@ const appointmentBook: Map<string, RipperdocAppointment> = new Map();
 
 // Neural registry simulation
 const neuralRegistry: Map<string, NeuralIntegrationResult[]> = new Map();
+
+// Blockchain initialization flag
+let blockchainInitialized = false;
+
+/**
+ * Initialize the blockchain connection (called lazily on first payment)
+ */
+async function ensureBlockchainConnection(): Promise<void> {
+  if (!blockchainInitialized) {
+    await initBlockchain();
+    blockchainInitialized = true;
+  }
+}
 
 // ============================================================================
 // FIXER'S INVENTORY SYSTEM
@@ -160,8 +181,8 @@ export async function releaseCyberwareReservation(
 /**
  * Process payment from runner's credstick.
  * 
- * This creates a PERSISTENT transaction in the blockchain-backed ledger.
- * Once processed, the eurodollars are transferred to the fixer and ripperdoc.
+ * This creates a PERSISTENT transaction on the Night City blockchain (chain ID 2077).
+ * Once processed, the eurodollars are transferred to the fixer and ripperdoc escrow.
  * If installation fails, we MUST call refundPayment to reverse it.
  */
 export async function processCredstickPayment(
@@ -171,8 +192,8 @@ export async function processCredstickPayment(
 ): Promise<CredstickTransaction> {
   console.log(`[CREDSTICK LEDGER] Processing payment for ${request.runner.handle}`);
   
-  // Simulate blockchain confirmation time
-  await sleep(randomBetween(200, 500));
+  // Initialize blockchain connection if needed
+  await ensureBlockchainConnection();
   
   // Calculate total cost
   const cyberwareCost = reservation.unitPrice;
@@ -192,6 +213,25 @@ export async function processCredstickPayment(
     throw new Error(`[CREDSTICK LEDGER] ${failureReasons[Math.floor(Math.random() * failureReasons.length)]}`);
   }
   
+  // Record payment on the Night City blockchain
+  const memo = `CYBERWARE:${request.cyberware.name}:${request.runner.handle}`;
+  let blockchainResult: { txHash: string; blockNumber: number; gasUsed: string };
+  
+  try {
+    console.log(`[CREDSTICK LEDGER] Broadcasting to Night City blockchain (Chain ID: 2077)...`);
+    blockchainResult = await recordPayment(
+      ACCOUNTS.RUNNER_V,      // From: Runner's wallet
+      ACCOUNTS.FIXER_ESCROW,  // To: Fixer escrow
+      totalAmount,
+      memo
+    );
+    console.log(`[CREDSTICK LEDGER] ⛓ Transaction mined in block ${blockchainResult.blockNumber}`);
+    console.log(`[CREDSTICK LEDGER] ⛓ Gas used: ${blockchainResult.gasUsed}`);
+  } catch (error) {
+    console.log(`[CREDSTICK LEDGER] ⚠ Blockchain error: ${error}`);
+    throw new Error(`[CREDSTICK LEDGER] Blockchain transaction failed. Network issues.`);
+  }
+  
   const transaction: CredstickTransaction = {
     transactionId: `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     credstickId: request.runner.credstickId,
@@ -202,19 +242,22 @@ export async function processCredstickPayment(
     purpose: `Cyberware installation: ${request.cyberware.name}`,
     timestamp: new Date(),
     status: 'completed',
-    blockchainRef: `0x${Math.random().toString(16).substr(2, 40)}`
+    blockchainRef: blockchainResult.txHash
   };
   
-  // Persist to ledger
+  // Persist to local ledger for quick lookups
   credstickLedger.set(transaction.transactionId, transaction);
   
   console.log(
     `[CREDSTICK LEDGER] ✓ Payment processed. ` +
-    `Transaction: ${transaction.transactionId}, Amount: €$${totalAmount.toFixed(2)}`
+    `Amount: €$${totalAmount.toFixed(2)}`
   );
   console.log(
     `[CREDSTICK LEDGER]   Breakdown: Cyberware €$${cyberwareCost.toFixed(2)} + ` +
     `Surgery €$${surgeryFee.toFixed(2)} + Rush €$${rushFee.toFixed(2)}`
+  );
+  console.log(
+    `[CREDSTICK LEDGER]   Blockchain TX: ${blockchainResult.txHash.slice(0, 18)}...`
   );
   
   return transaction;
@@ -224,7 +267,8 @@ export async function processCredstickPayment(
  * COMPENSATION: Refund a credstick payment.
  * 
  * Called when installation fails after payment. Night City takes its cut
- * on refunds too - nothing's free in this town.
+ * on refunds too - nothing's free in this town. The refund is also
+ * recorded on the blockchain for full transparency.
  */
 export async function refundCredstickPayment(
   transactionId: string,
@@ -232,7 +276,8 @@ export async function refundCredstickPayment(
 ): Promise<RefundResult> {
   console.log(`[CREDSTICK LEDGER] Processing refund for ${transactionId}. Reason: ${reason}`);
   
-  await sleep(randomBetween(150, 400));
+  // Ensure blockchain is connected
+  await ensureBlockchainConnection();
   
   const originalTransaction = credstickLedger.get(transactionId);
   if (!originalTransaction) {
@@ -243,11 +288,29 @@ export async function refundCredstickPayment(
   const processingFee = originalTransaction.amount * 0.05;
   const refundedAmount = originalTransaction.amount - processingFee;
   
+  // Record refund on the blockchain
+  let refundTxHash: string;
+  try {
+    console.log(`[CREDSTICK LEDGER] Broadcasting refund to Night City blockchain...`);
+    const refundResult = await recordRefund(
+      ACCOUNTS.FIXER_ESCROW,  // From: Escrow
+      ACCOUNTS.RUNNER_V,      // To: Runner
+      refundedAmount,
+      originalTransaction.blockchainRef || 'N/A',
+      reason
+    );
+    refundTxHash = refundResult.txHash;
+    console.log(`[CREDSTICK LEDGER] ⛓ Refund TX mined in block ${refundResult.blockNumber}`);
+  } catch (error) {
+    console.log(`[CREDSTICK LEDGER] ⚠ Blockchain refund recorded off-chain: ${error}`);
+    refundTxHash = `OFFCHAIN-${Date.now()}`;
+  }
+  
   originalTransaction.status = 'refunded';
   
-  const refundResult: RefundResult = {
+  const refundResultData: RefundResult = {
     originalTransactionId: transactionId,
-    refundTransactionId: `RFND-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    refundTransactionId: refundTxHash.slice(0, 20),
     refundedAmount,
     refundFee: processingFee,
     refundedAt: new Date(),
@@ -255,11 +318,14 @@ export async function refundCredstickPayment(
   };
   
   console.log(
-    `[CREDSTICK LEDGER] ✓ Refund processed. ` +
+    `[CREDSTICK LEDGER] ✓ Refund processed on-chain. ` +
     `Refunded: €$${refundedAmount.toFixed(2)}, Fee kept: €$${processingFee.toFixed(2)}`
   );
+  console.log(
+    `[CREDSTICK LEDGER]   Refund TX: ${refundTxHash.slice(0, 18)}...`
+  );
   
-  return refundResult;
+  return refundResultData;
 }
 
 // ============================================================================

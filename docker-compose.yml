@@ -1,4 +1,26 @@
 services:
+  # Night City Blockchain (Ganache - local Ethereum)
+  # The credstick ledger runs on this chain
+  blockchain:
+    image: trufflesuite/ganache:latest
+    container_name: night-city-blockchain
+    ports:
+      - "8545:8545"    # JSON-RPC
+    command:
+      - --chain.chainId=2077
+      - --wallet.totalAccounts=10
+      - --wallet.defaultBalance=1000000
+      - --miner.blockGasLimit=30000000
+      - --chain.hardfork=london
+      - --database.dbPath=/data
+    volumes:
+      - blockchain-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   # PostgreSQL for Temporal persistence
   postgresql:
     image: postgres:16-alpine
@@ -53,4 +75,5 @@ services:
 
 volumes:
   postgres-data:
+  blockchain-data:
 

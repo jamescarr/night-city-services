@@ -4,7 +4,7 @@
 
 # Night City Chrome & Data Services
 
-> *"When you want to know how things really work, study them when they're coming apart."* — William Gibson, Neuromancer
+> *"He was more than a dolphin, but from another dolphin's point of view he might have seemed like something less."* — William Gibson, "Johnny Mnemonic"
 
 A cyberpunk-themed exploration of **[Temporal](https://temporal.io/)** for building durable, reliable workflows. This project demonstrates the Saga pattern with compensating transactions, along with Temporal's built-in reliability features like automatic retries, durable execution, and workflow visibility.
 
