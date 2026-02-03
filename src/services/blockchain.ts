@@ -142,9 +142,17 @@ export async function recordRefund(
   toAccount: number,
   amountEurodollars: number,
   originalTxHash: string,
-  reason: string
+  reason: string,
+  metadata?: Record<string, unknown>
 ): Promise<{ txHash: string; blockNumber: number }> {
-  const memo = `REFUND:${originalTxHash.slice(0, 10)}:${reason}`;
+  const memo = JSON.stringify({
+    type: 'REFUND',
+    originalTx: originalTxHash,
+    reason: reason,
+    amount: amountEurodollars,
+    timestamp: new Date().toISOString(),
+    ...metadata,
+  });
   const result = await recordPayment(fromAccount, toAccount, amountEurodollars, memo);
   return { txHash: result.txHash, blockNumber: result.blockNumber };
 }

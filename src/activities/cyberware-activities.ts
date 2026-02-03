@@ -197,8 +197,32 @@ export async function processCredstickPayment(
     throw new Error(`[CREDSTICK LEDGER] ${failureReasons[Math.floor(Math.random() * failureReasons.length)]}`);
   }
   
-  // Record payment on the Night City blockchain
-  const memo = `CYBERWARE:${request.cyberware.name}:${request.runner.handle}`;
+  // Record payment on the Night City blockchain with detailed memo
+  const memo = JSON.stringify({
+    type: 'CYBERWARE_PAYMENT',
+    runner: {
+      handle: request.runner.handle,
+      id: request.runner.runnerId,
+    },
+    cyberware: {
+      name: request.cyberware.name,
+      grade: request.cyberware.grade,
+      manufacturer: request.cyberware.manufacturer,
+    },
+    appointment: {
+      ripperdoc: appointment.ripperdocName,
+      location: appointment.location,
+      type: appointment.installationType,
+    },
+    costs: {
+      cyberware: cyberwareCost,
+      surgery: surgeryFee,
+      rush: rushFee,
+      deposit: appointment.depositPaid,
+      total: totalAmount,
+    },
+    timestamp: new Date().toISOString(),
+  });
   let blockchainResult: { txHash: string; blockNumber: number; gasUsed: string };
   
   try {
@@ -275,7 +299,7 @@ export async function refundCredstickPayment(
   const processingFee = originalTransaction.amount * 0.05;
   const refundedAmount = originalTransaction.amount - processingFee;
   
-  // Record refund on the blockchain
+  // Record refund on the blockchain with detailed metadata
   let refundTxHash: string;
   try {
     console.log(`[CREDSTICK LEDGER] Broadcasting refund to Night City blockchain...`);
@@ -284,7 +308,16 @@ export async function refundCredstickPayment(
       ACCOUNTS.RUNNER_V,      // To: Runner
       refundedAmount,
       originalTransaction.blockchainRef || 'N/A',
-      reason
+      reason,
+      {
+        originalAmount: originalTransaction.amount,
+        processingFee: processingFee,
+        runner: {
+          id: originalTransaction.runnerId,
+          credstick: originalTransaction.credstickId,
+        },
+        purpose: originalTransaction.purpose,
+      }
     );
     refundTxHash = refundResult.txHash;
     console.log(`[CREDSTICK LEDGER] ⛓ Refund TX mined in block ${refundResult.blockNumber}`);
