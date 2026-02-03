@@ -72,6 +72,10 @@ logs-blockchain:
 # Worker
 # =============================================================================
 
+# Kill any running workers for this project
+kill-workers:
+    @pkill -f "night-city-services.*worker" 2>/dev/null || echo "No workers running"
+
 # Start a single worker
 worker:
     pnpm run worker

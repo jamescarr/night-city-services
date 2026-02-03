@@ -1,21 +1,51 @@
 /**
  * Heist Activities - Shadowrun Operations
- * 
+ *
  * Activities for coordinating shadowruns against megacorp targets.
- * Each phase of the heist has its own persistent state and can
- * be aborted if things go sideways.
+ * Long-running activities use heartbeating to support mid-execution cancellation.
  */
 
+import { Context } from '@temporalio/activity';
 import type {
   HeistProcess,
   HeistPhase,
   HeistMember,
   HeistTarget,
-  PhaseTransition
+  PhaseTransition,
 } from '../shared/types';
 
-// Simulated state store for heists
+// ============================================================================
+// HELPERS
+// ============================================================================
+
 const heistRegistry: Map<string, HeistProcess> = new Map();
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function randomBetween(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * Sleep while periodically heartbeating.
+ * Enables Temporal to cancel the activity mid-execution.
+ */
+async function heartbeatSleep(ms: number, details: string): Promise<void> {
+  const ctx = Context.current();
+  const heartbeatIntervalMs = 1000;
+  let remaining = ms;
+
+  while (remaining > 0) {
+    const sleepTime = Math.min(remaining, heartbeatIntervalMs);
+    await sleep(sleepTime);
+    remaining -= sleepTime;
+
+    // Heartbeat with progress info; throws if cancelled
+    ctx.heartbeat(details);
+  }
+}
 
 // ============================================================================
 // PLANNING PHASE
@@ -30,8 +60,8 @@ export async function initializeHeist(
   console.log(`[HEIST] Initializing operation "${codename}"`);
   console.log(`[HEIST] Target: ${target.corporationName} - ${target.facilityName}`);
   console.log(`[HEIST] Security: ${target.securityLevel.toUpperCase()} | Intel: ${target.intelQuality}`);
-  
-  await sleep(100);
+
+  await heartbeatSleep(500, 'initializing');
   
   const heist: HeistProcess = {
     heistId,
@@ -61,25 +91,25 @@ export async function recruitTeamMember(
   member: HeistMember
 ): Promise<HeistProcess> {
   console.log(`[HEIST] Recruiting ${member.handle} as ${member.role}...`);
-  
-  await sleep(randomBetween(100, 300));
-  
+
+  // Heartbeat during long operation to support cancellation
+  await heartbeatSleep(randomBetween(2000, 3000), `recruiting ${member.handle}`);
+
   const heist = heistRegistry.get(heistId);
   if (!heist) throw new Error(`Heist ${heistId} not found`);
-  
+
   // 10% chance the recruit has heat on them
-  if (Math.random() < 0.10) {
+  if (Math.random() < 0.1) {
     heist.alertLevel += 5;
     console.log(`[HEIST] ⚠ ${member.handle} brought attention. Alert +5`);
   }
-  
+
   member.status = 'recruited';
   heist.team.push(member);
-  
-  // Calculate team cut total
-  const totalCut = heist.team.reduce((sum, m) => sum + m.cutPercentage, 0);
-  
+
+  const totalCut = heist.team.reduce((sum: number, m: HeistMember) => sum + m.cutPercentage, 0);
   console.log(`[HEIST] ✓ ${member.handle} recruited. Cut: ${member.cutPercentage}% | Team cut total: ${totalCut}%`);
+
   return heist;
 }
 
@@ -97,25 +127,25 @@ export async function acquireGear(
   cost: number
 ): Promise<HeistProcess> {
   console.log(`[HEIST] Acquiring ${gearType}...`);
-  
-  await sleep(randomBetween(100, 200));
-  
+
+  await heartbeatSleep(randomBetween(2000, 3000), `acquiring ${gearType}`);
+
   const heist = heistRegistry.get(heistId);
   if (!heist) throw new Error(`Heist ${heistId} not found`);
-  
+
   if (heist.spent + cost > heist.budget) {
     throw new Error(`Insufficient budget. Need €$${cost}, have €$${heist.budget - heist.spent}`);
   }
-  
+
   heist.spent += cost;
-  
+
   // Certain gear attracts attention
   const hotGear = ['military weapons', 'explosives', 'EMP device', 'blackwall breach kit'];
-  if (hotGear.some(g => gearType.toLowerCase().includes(g))) {
+  if (hotGear.some((g) => gearType.toLowerCase().includes(g))) {
     heist.alertLevel += 10;
     console.log(`[HEIST] ⚠ Hot merchandise. Alert +10`);
   }
-  
+
   console.log(`[HEIST] ✓ Acquired ${gearType}. Spent: €$${heist.spent}/${heist.budget}`);
   return heist;
 }
@@ -130,41 +160,43 @@ export async function transitionToGearAcquisition(heistId: string): Promise<Heis
 
 export async function beginInfiltration(heistId: string): Promise<HeistProcess> {
   console.log(`[HEIST] Beginning infiltration...`);
-  
-  await sleep(randomBetween(200, 400));
-  
+
+  await heartbeatSleep(randomBetween(4000, 6000), 'infiltrating facility');
+
   const heist = heistRegistry.get(heistId);
   if (!heist) throw new Error(`Heist ${heistId} not found`);
-  
-  // Check if team is ready
+
   for (const member of heist.team) {
     member.status = 'in_position';
   }
-  
-  // Infiltration success depends on security level and intel quality
-  const baseChance = heist.target.securityLevel === 'minimal' ? 0.95 :
-                     heist.target.securityLevel === 'standard' ? 0.85 :
-                     heist.target.securityLevel === 'high' ? 0.70 : 0.50;
-  
-  const intelBonus = heist.target.intelQuality === 'insider' ? 0.15 :
-                     heist.target.intelQuality === 'detailed' ? 0.10 :
-                     heist.target.intelQuality === 'partial' ? 0.05 : 0;
-  
+
+  // Infiltration success depends on security and intel
+  const baseChance =
+    heist.target.securityLevel === 'minimal' ? 0.95
+    : heist.target.securityLevel === 'standard' ? 0.85
+    : heist.target.securityLevel === 'high' ? 0.7
+    : 0.5;
+
+  const intelBonus =
+    heist.target.intelQuality === 'insider' ? 0.15
+    : heist.target.intelQuality === 'detailed' ? 0.1
+    : heist.target.intelQuality === 'partial' ? 0.05
+    : 0;
+
   const alertPenalty = heist.alertLevel * 0.005;
   const successChance = Math.min(0.95, baseChance + intelBonus - alertPenalty);
-  
-  // 15% chance of detection during infiltration
+
   if (Math.random() > successChance) {
     heist.alertLevel += 25;
-    console.log(`[HEIST] ⚠ PARTIAL DETECTION during infiltration! Alert: ${heist.alertLevel}`);
-    
+    console.log(`[HEIST] ⚠ PARTIAL DETECTION! Alert: ${heist.alertLevel}`);
+
     if (heist.alertLevel >= 75) {
-      throw new Error('Infiltration failed - security alerted. Abort recommended.');
+      throw new Error('Infiltration failed - security alerted');
     }
   }
-  
-  console.log(`[HEIST] ✓ Team in position. Alert level: ${heist.alertLevel}`);
-  return transitionPhase(heistId, 'gear_acquisition', 'infiltration', 'Gear secured, infiltrating', 'workflow');
+
+  console.log(`[HEIST] ✓ Team in position. Alert: ${heist.alertLevel}`);
+  return transitionPhase(heistId, 'gear_acquisition', 'infiltration', 'Infiltrating', 'workflow');
 }
 
 // ============================================================================
@@ -173,36 +205,35 @@ export async function beginInfiltration(heistId: string): Promise<HeistProcess> 
 
 export async function executeObjective(heistId: string): Promise<HeistProcess> {
   console.log(`[HEIST] Executing primary objective...`);
-  
+
   const heist = heistRegistry.get(heistId);
   if (!heist) throw new Error(`Heist ${heistId} not found`);
-  
+
   console.log(`[HEIST] Target: ${heist.target.objective}`);
-  
-  // Simulate objective stages
+
   const stages = [
-    'Bypassing security protocols...',
-    'Accessing target systems...',
-    'Extracting objective...',
-    'Covering tracks...'
+    'Bypassing security protocols',
+    'Accessing target systems',
+    'Extracting objective',
+    'Covering tracks',
   ];
-  
+
   for (const stage of stages) {
-    console.log(`[HEIST] ${stage}`);
-    await sleep(randomBetween(150, 300));
-    
+    console.log(`[HEIST] ${stage}...`);
+    await heartbeatSleep(randomBetween(3000, 5000), stage);
+
     // Each stage has a chance to raise alert
     if (Math.random() < 0.15) {
       heist.alertLevel += 10;
       console.log(`[HEIST] ⚠ Alert triggered! Level: ${heist.alertLevel}`);
-      
+
       if (heist.alertLevel >= 100) {
-        await transitionPhase(heistId, heist.currentPhase, 'compromised', 'Alert level critical - operation blown', 'failure');
-        throw new Error('OPERATION COMPROMISED - Security response incoming!');
+        await transitionPhase(heistId, heist.currentPhase, 'compromised', 'Critical alert', 'failure');
+        throw new Error('OPERATION COMPROMISED');
       }
     }
   }
-  
+
   console.log(`[HEIST] ✓ Objective secured!`);
   return transitionPhase(heistId, 'infiltration', 'execution', 'Objective complete', 'workflow');
 }
@@ -213,28 +244,28 @@ export async function executeObjective(heistId: string): Promise<HeistProcess> {
 
 export async function extractTeam(heistId: string): Promise<HeistProcess> {
   console.log(`[HEIST] Beginning extraction...`);
-  
+
   const heist = heistRegistry.get(heistId);
   if (!heist) throw new Error(`Heist ${heistId} not found`);
-  
-  await sleep(randomBetween(200, 400));
-  
-  // Extraction difficulty based on alert level
+
+  // Extract each team member with heartbeating
   let miaCount = 0;
   for (const member of heist.team) {
-    const extractionChance = 1 - (heist.alertLevel / 200);
+    await heartbeatSleep(randomBetween(2000, 3000), `extracting ${member.handle}`);
+
+    const extractionChance = 1 - heist.alertLevel / 200;
     if (Math.random() < extractionChance) {
       member.status = 'extracted';
-      console.log(`[HEIST] ✓ ${member.handle} extracted successfully`);
+      console.log(`[HEIST] ✓ ${member.handle} extracted`);
     } else {
       member.status = 'mia';
       miaCount++;
-      console.log(`[HEIST] ⚠ ${member.handle} is MIA`);
+      console.log(`[HEIST] ⚠ ${member.handle} MIA`);
     }
   }
-  
+
   if (miaCount > 0) {
-    console.log(`[HEIST] ⚠ ${miaCount} team member(s) didn't make it out`);
+    console.log(`[HEIST] ⚠ ${miaCount} team member(s) didn't make it`);
   }
   
   return transitionPhase(heistId, 'execution', 'extraction', 'Team extraction complete', 'workflow');
@@ -260,8 +291,8 @@ export async function completeHeist(heistId: string): Promise<HeistProcess> {
   const finalPayout = basePayout - alertPenalty;
   
   // Distribute among surviving team
-  const survivingTeam = heist.team.filter(m => m.status === 'extracted');
-  const totalCut = survivingTeam.reduce((sum, m) => sum + m.cutPercentage, 0);
+  const survivingTeam = heist.team.filter((m: HeistMember) => m.status === 'extracted');
+  const totalCut = survivingTeam.reduce((sum: number, m: HeistMember) => sum + m.cutPercentage, 0);
   
   console.log(`[HEIST] ═══════════════════════════════════════`);
   console.log(`[HEIST] OPERATION "${heist.codename}" COMPLETE`);
@@ -295,7 +326,7 @@ export async function abortHeist(heistId: string, reason: string): Promise<Heist
   if (phase === 'planning' || phase === 'team_assembly') {
     console.log(`[HEIST] Early abort - minimal exposure`);
     // Just release the team
-    heist.team.forEach(m => m.status = 'extracted');
+    heist.team.forEach((m: HeistMember) => m.status = 'extracted');
   } else if (phase === 'gear_acquisition') {
     console.log(`[HEIST] Gear acquired - attempting to resell...`);
     const resaleValue = heist.spent * 0.6; // 60% resale value
@@ -347,16 +378,8 @@ async function transitionPhase(
   
   heist.phaseHistory.push(transition);
   heist.currentPhase = to;
-  
+
   console.log(`[HEIST] Phase transition: ${from} → ${to}`);
-  
+
   return heist;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function randomBetween(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
 }

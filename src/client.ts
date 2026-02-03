@@ -221,13 +221,13 @@ async function runHeistProcessManager(client: Client, withAbort: boolean = false
   console.log('\n' + '█'.repeat(70));
   console.log(`HEIST PROCESS MANAGER DEMO${withAbort ? ' (WITH ABORT)' : ''}`);
   console.log('█'.repeat(70));
-  console.log('\nThis demo shows the Process Manager pattern with signals and queries.');
-  console.log('The heist progresses through phases and can be aborted at any time.\n');
+  console.log('\nDemonstrates Process Manager with Temporal CancellationScope.');
+  console.log('Abort signal cancels the current scope, triggering emergency extraction.\n');
   console.log('Phases: planning → team_assembly → gear_acquisition → infiltration → execution → extraction → completed');
-  console.log('\nSignals available:');
-  console.log('  - abortHeist(reason): Emergency abort at any phase');
-  console.log('  - updateAlertLevel(delta, source): Adjust security alert');
-  console.log('  - confirmTeamReady(): Confirm team is assembled\n');
+  console.log('\nSignals:');
+  console.log('  - abortHeist(reason): Cancels workflow scope, triggers cleanup');
+  console.log('  - updateAlertLevel(delta, source): Adjust alert (100 = auto-abort)');
+  console.log('  - confirmTeamReady(): Advance past team assembly gate\n');
   
   const config: HeistConfig = {
     heistId: `HEIST-${Date.now()}`,
@@ -259,16 +259,14 @@ async function runHeistProcessManager(client: Client, withAbort: boolean = false
     console.log('\n📡 Sending confirmTeamReady signal...');
     await handle.signal(confirmTeamReadySignal);
     
-    // Wait a bit then query state
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Wait for workflow to progress into infiltration phase
+    await new Promise(resolve => setTimeout(resolve, 25000));
     
     const state = await handle.query(getHeistStateQuery);
     console.log(`\n📊 Current state: ${state?.currentPhase || 'unknown'}`);
     console.log(`   Alert Level: ${state?.alertLevel || 0}`);
     
-    // Wait more then abort
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
+    // Send abort during infiltration or execution phase
     console.log('\n⚠ Sending ABORT signal (simulating compromised intel)...');
     await handle.signal(abortHeistSignal, 'Security sweep detected - compromised intel');
   } else {
