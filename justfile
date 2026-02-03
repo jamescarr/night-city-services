@@ -1,4 +1,4 @@
-# Temporal Patterns - Task Runner
+# Night City Chrome & Data Services - Task Runner
 
 set dotenv-load := true
 
@@ -26,23 +26,29 @@ typecheck:
 # Infrastructure
 # =============================================================================
 
-# Start Temporal server and UI
-infra:
+# Start Temporal server, UI, and Night City services
+up:
     docker compose up -d
     @echo ""
-    @echo "Temporal UI: http://localhost:8080"
-    @echo "Waiting for Temporal to be healthy..."
-    @sleep 5
+    @echo "Services starting..."
+    @echo "  Temporal UI:         http://localhost:8080"
+    @echo "  Fixer API:           http://localhost:8000"
+    @echo "  Ripperdoc API:       http://localhost:8001"
+    @echo "  Blockchain:          http://localhost:8545"
+    @echo "  Blockchain Explorer: http://localhost:8800"
+    @echo ""
+    @echo "Waiting for services to be healthy..."
+    @sleep 8
 
 # Stop all services
 down:
     docker compose down
 
-# Stop and remove volumes
+# Stop and remove volumes (full reset)
 down-clean:
     docker compose down -v
 
-# View logs
+# View all logs
 logs:
     docker compose logs -f
 
@@ -50,60 +56,111 @@ logs:
 logs-temporal:
     docker compose logs -f temporal
 
+# View Fixer API logs
+logs-fixer:
+    docker compose logs -f fixer-api
+
+# View Ripperdoc API logs
+logs-ripperdoc:
+    docker compose logs -f ripperdoc-api
+
+# View blockchain logs
+logs-blockchain:
+    docker compose logs -f blockchain
+
 # =============================================================================
 # Worker
 # =============================================================================
 
-# Start the worker (must be running to execute workflows)
+# Start a single worker
 worker:
-    pnpm start:worker
+    pnpm run worker
+
+# Start multiple workers (default: 3)
+workers count="3":
+    #!/usr/bin/env bash
+    set -e
+    echo "Starting {{ count }} workers..."
+    for i in $(seq 1 {{ count }}); do
+        echo "  Starting worker $i..."
+        pnpm run worker &
+        sleep 1
+    done
+    echo ""
+    echo "{{ count }} workers running. Press Ctrl+C to stop all."
+    wait
 
 # =============================================================================
 # Run Workflows
 # =============================================================================
 
-# Run the Order Saga workflow (Saga pattern)
+# Run the Cyberware Installation Saga
 saga:
-    pnpm start:client order-saga
+    pnpm run saga
 
-# Run the Quote Request workflow (Scatter-Gather pattern)
-scatter-gather:
-    pnpm start:client scatter-gather
+# Run the Data Broker Scatter-Gather
+scatter:
+    pnpm run scatter
 
-# Run the Order Fulfillment workflow (Process Manager pattern)
-process-manager:
-    pnpm start:client process-manager
+# Run the Heist Process Manager
+heist:
+    pnpm run heist
 
-# Cancel an order (Process Manager)
-cancel-order workflow_id reason="Customer requested":
-    pnpm start:client cancel-order {{ workflow_id }} "{{ reason }}"
-
-# Confirm delivery (Process Manager)
-confirm-delivery workflow_id:
-    pnpm start:client confirm-delivery {{ workflow_id }}
-
-# Query workflow state (Process Manager)
-query-state workflow_id:
-    pnpm start:client query-state {{ workflow_id }}
+# Run the Heist with abort signal
+heist-abort:
+    pnpm run heist:abort
 
 # =============================================================================
 # Demo
 # =============================================================================
 
-# Run a quick demo of all patterns
-demo: infra
+# Full demo: start infra, worker, and run saga
+demo: up
     @echo ""
     @echo "Starting worker in background..."
-    @pnpm start:worker &
-    @sleep 3
+    @pnpm run worker &
+    @sleep 5
     @echo ""
-    @echo "=== Running Order Saga ==="
-    pnpm start:client order-saga
+    @echo "=== Running Cyberware Installation Saga ==="
+    @echo "(Rate limiting demo: first 3 requests will get 429s)"
     @echo ""
-    @echo "=== Running Scatter-Gather ==="
-    pnpm start:client scatter-gather
+    pnpm run saga
     @echo ""
     @echo "Demo complete! Check the Temporal UI at http://localhost:8080"
+
+# Run all three patterns in sequence
+demo-all: up
+    @echo ""
+    @echo "Starting worker in background..."
+    @pnpm run worker &
+    @sleep 5
+    @echo ""
+    @echo "=== 1/3: Cyberware Installation Saga ==="
+    pnpm run saga
+    @echo ""
+    @echo "=== 2/3: Data Broker Scatter-Gather ==="
+    pnpm run scatter
+    @echo ""
+    @echo "=== 3/3: Heist Process Manager ==="
+    pnpm run heist
+    @echo ""
+    @echo "All demos complete! Check the Temporal UI at http://localhost:8080"
+
+# =============================================================================
+# Utilities
+# =============================================================================
+
+# Register custom search attributes (run once after starting Temporal)
+setup-search-attributes:
+    ./scripts/setup-search-attributes.sh
+
+# Check service health
+health:
+    @echo "Checking services..."
+    @curl -sf http://localhost:8000/health > /dev/null && echo "  Fixer API:     ✓" || echo "  Fixer API:     ✗"
+    @curl -sf http://localhost:8001/health > /dev/null && echo "  Ripperdoc API: ✓" || echo "  Ripperdoc API: ✗"
+    @curl -sf http://localhost:8545 -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' > /dev/null && echo "  Blockchain:    ✓" || echo "  Blockchain:    ✗"
+    @curl -sf http://localhost:8080 > /dev/null && echo "  Temporal UI:   ✓" || echo "  Temporal UI:   ✗"
 
 # =============================================================================
 # Cleanup
@@ -113,7 +170,6 @@ demo: infra
 clean:
     rm -rf dist node_modules
 
-# Full reset
+# Full reset (stop containers, remove volumes, clean build)
 reset: down-clean clean
     @echo "Full reset complete"
-
