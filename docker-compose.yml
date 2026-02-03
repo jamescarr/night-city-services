@@ -41,6 +41,17 @@ services:
       # Use Hardhat's default mnemonic so our private keys match the funded accounts
       - --wallet.mnemonic=test test test test test test test test test test test junk
       - --database.dbPath=/data
+
+  # Blockchain Explorer - View transactions on Night City chain
+  blockchain-explorer:
+    image: alethio/ethereum-lite-explorer
+    container_name: night-city-explorer
+    ports:
+      - "8800:80"
+    environment:
+      - APP_NODE_URL=http://localhost:8545
+    depends_on:
+      - blockchain
     volumes:
       - blockchain-data:/data
     healthcheck:

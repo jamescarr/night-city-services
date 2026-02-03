@@ -112,10 +112,12 @@ The docker-compose starts:
 - **Temporal Server** - Workflow orchestration
 - **Temporal UI** - http://localhost:8080
 - **PostgreSQL** - Temporal persistence
-- **Fixer API** - FastAPI service for inventory (port 8000) - **simulates flaky service!**
+- **Fixer API** (Python/FastAPI) - Inventory service (port 8000) - **simulates flaky service!**
+- **Ripperdoc API** (Elixir) - Scheduling service (port 8001)
 - **Ganache** - Night City blockchain (Chain ID: 2077) on port 8545
+- **Blockchain Explorer** - http://localhost:8800 - View transactions on-chain
 
-The Fixer API returns **429 (rate limit)** for the first 3 requests before succeeding, demonstrating Temporal's automatic retry capabilities. Credstick payments are recorded as actual Ethereum transactions on the local blockchain!
+The Fixer API returns **429 (rate limit)** for the first 3 requests before succeeding, demonstrating Temporal's automatic retry capabilities. Credstick payments are recorded as actual Ethereum transactions—view them in the blockchain explorer!
 
 ### Run Scenarios
 
@@ -148,6 +150,24 @@ Open http://localhost:8080 to see workflows in the Temporal Web UI. You can insp
 - Activity inputs/outputs
 - Retry attempts
 - Compensation steps (on failures)
+
+### View Blockchain Transactions
+
+Open http://localhost:8800 to browse the Night City blockchain. After running the saga:
+
+1. **View recent blocks** - Each payment/refund creates a new block
+2. **Inspect transactions** - Click a transaction to see:
+   - From/To addresses (Runner → Fixer Escrow for payments)
+   - Amount transferred (in ETH, where 1 ETH = €$1000)
+   - Input data field containing the memo (e.g., `CYBERWARE:Sandevistan:V`)
+3. **Track refunds** - Failed sagas generate refund transactions with memo `REFUND:<original-tx>:<reason>`
+
+**Account addresses:**
+| Role | Address |
+|------|---------|
+| Fixer Escrow | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` |
+| Ripperdoc Escrow | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` |
+| Runner V | `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` |
 
 ---
 
