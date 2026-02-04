@@ -19,3 +19,6 @@ export {
   confirmTeamReadySignal,
   getHeistStateQuery 
 } from './heist-process-manager';
+
+// AI Agent: NetWatch Intelligence Analyst
+export { netwatchIntelAgent } from './netwatch-agent';

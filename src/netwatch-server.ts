@@ -1,0 +1,102 @@
+/**
+ * NetWatch Intelligence API Server
+ *
+ * Serves the frontend and handles API requests to the Temporal worker.
+ * Note: The OpenAI API key is NOT needed here - only the worker needs it.
+ */
+
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { Client, Connection } from '@temporalio/client';
+import { netwatchIntelAgent } from './workflows/netwatch-agent';
+
+const PORT = process.env.PORT || 3000;
+const TASK_QUEUE = 'netwatch-intel';
+
+async function main() {
+  // Connect to Temporal
+  const connection = await Connection.connect({
+    address: process.env.TEMPORAL_ADDRESS || 'localhost:7233',
+  });
+  const client = new Client({ connection });
+
+  const app = express();
+  app.use(cors());
+  app.use(express.json());
+
+  // Serve static frontend
+  app.use(express.static(path.join(__dirname, '../frontend')));
+
+  // API endpoint for intelligence requests
+  app.post('/api/intel', async (req, res) => {
+    try {
+      const { query, priority = 'routine', requester = 'Anonymous' } = req.body;
+
+      if (!query) {
+        res.status(400).json({ error: 'Query is required' });
+        return;
+      }
+
+      const requestId = `REQ-${Date.now()}`;
+
+      console.log('─'.repeat(50));
+      console.log(`[API] New intel request: ${requestId}`);
+      console.log(`[API] Requester: ${requester}`);
+      console.log(`[API] Priority: ${priority}`);
+      console.log(`[API] Query: ${query.substring(0, 100)}...`);
+
+      // Start workflow and wait for result
+      const handle = await client.workflow.start(netwatchIntelAgent, {
+        taskQueue: TASK_QUEUE,
+        workflowId: `netwatch-${requestId}`,
+        args: [
+          {
+            requestId,
+            query,
+            requester,
+            priority,
+          },
+        ],
+      });
+
+      console.log(`[API] Workflow started: ${handle.workflowId}`);
+
+      const result = await handle.result();
+
+      console.log(`[API] Analysis complete: ${result.classification}`);
+      console.log('─'.repeat(50));
+
+      res.json(result);
+    } catch (error) {
+      console.error('[API] Error:', error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Internal server error',
+      });
+    }
+  });
+
+  // Health check
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'online', service: 'NetWatch Intelligence API' });
+  });
+
+  app.listen(PORT, () => {
+    console.log('═'.repeat(50));
+    console.log('NETWATCH INTELLIGENCE API SERVER');
+    console.log('═'.repeat(50));
+    console.log();
+    console.log(`Frontend: http://localhost:${PORT}`);
+    console.log(`API:      http://localhost:${PORT}/api/intel`);
+    console.log();
+    console.log('Note: Make sure the NetWatch worker is running!');
+    console.log('  pnpm run netwatch:worker');
+    console.log();
+    console.log('─'.repeat(50));
+  });
+}
+
+main().catch((err) => {
+  console.error('Server error:', err);
+  process.exit(1);
+});
