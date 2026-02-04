@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.36",
     "@ai-sdk/openai": "^3.0.25",
     "@temporalio/activity": "^1.11.7",
     "@temporalio/ai-sdk": "^1.14.1",

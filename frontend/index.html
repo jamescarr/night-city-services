@@ -148,6 +148,7 @@
       gap: 15px;
       margin-top: 15px;
       flex-wrap: wrap;
+      align-items: center;
     }
 
     .priority-select {
@@ -163,6 +164,36 @@
       outline: none;
       border-color: var(--neon-cyan);
     }
+
+    .model-selection {
+      display: flex;
+      gap: 15px;
+      padding: 10px;
+      border: 1px solid var(--text-dim);
+      background: var(--darker-bg);
+    }
+
+    .model-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .model-checkbox input {
+      accent-color: var(--neon-cyan);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .model-checkbox label {
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+
+    .model-checkbox.openai label { color: var(--terminal-green); }
+    .model-checkbox.anthropic label { color: #d4a574; }
 
     .submit-btn {
       background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
@@ -187,6 +218,45 @@
       cursor: not-allowed;
       transform: none;
     }
+
+    .model-results {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .model-result {
+      border: 1px solid var(--text-dim);
+      padding: 15px;
+    }
+
+    .model-result.openai { border-left: 3px solid var(--terminal-green); }
+    .model-result.anthropic { border-left: 3px solid #d4a574; }
+
+    .model-result-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--text-dim);
+    }
+
+    .model-name {
+      font-weight: bold;
+    }
+
+    .model-name.openai { color: var(--terminal-green); }
+    .model-name.anthropic { color: #d4a574; }
+
+    .consensus-badge {
+      padding: 3px 10px;
+      font-size: 0.8em;
+      font-weight: bold;
+    }
+
+    .consensus-badge.full { background: var(--terminal-green); color: var(--dark-bg); }
+    .consensus-badge.partial { background: var(--neon-yellow); color: var(--dark-bg); }
+    .consensus-badge.divergent { background: var(--warning-red); color: white; }
 
     .response-section {
       background: var(--darker-bg);
@@ -335,6 +405,18 @@
       ></textarea>
 
       <div class="controls">
+        <div class="model-selection">
+          <span style="color: var(--text-dim); margin-right: 5px;">Models:</span>
+          <div class="model-checkbox openai">
+            <input type="checkbox" id="modelOpenAI" checked>
+            <label for="modelOpenAI">GPT-4o</label>
+          </div>
+          <div class="model-checkbox anthropic">
+            <input type="checkbox" id="modelAnthropic" checked>
+            <label for="modelAnthropic">Claude</label>
+          </div>
+        </div>
+
         <select class="priority-select" id="prioritySelect">
           <option value="routine">ROUTINE</option>
           <option value="urgent">URGENT</option>
@@ -414,11 +496,22 @@
       const query = document.getElementById('queryInput').value.trim();
       const priority = document.getElementById('prioritySelect').value;
       const requester = document.getElementById('requesterInput').value.trim() || 'Anonymous';
+      const useOpenAI = document.getElementById('modelOpenAI').checked;
+      const useAnthropic = document.getElementById('modelAnthropic').checked;
 
       if (!query) {
         alert('Please enter a query');
         return;
       }
+
+      if (!useOpenAI && !useAnthropic) {
+        alert('Please select at least one model');
+        return;
+      }
+
+      const models = [];
+      if (useOpenAI) models.push('openai');
+      if (useAnthropic) models.push('anthropic');
 
       const submitBtn = document.getElementById('submitBtn');
       const responseContent = document.getElementById('responseContent');
@@ -433,18 +526,22 @@
       classification.style.display = 'none';
       responseMeta.style.display = 'none';
 
+      const modelNames = models.map(m => m === 'openai' ? 'GPT-4o' : 'Claude').join(' + ');
       responseContent.innerHTML = `
         <div class="loading">
           <div class="loading-spinner"></div>
-          <span>Submitting request to NetWatch AI Agent...</span>
+          <span>Querying ${modelNames}...</span>
         </div>
       `;
 
       try {
-        const response = await fetch('/api/intel', {
+        // Use multimodel endpoint if multiple models selected
+        const endpoint = models.length > 1 ? '/api/intel/multimodel' : '/api/intel';
+        
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, priority, requester })
+          body: JSON.stringify({ query, priority, requester, models })
         });
 
         const result = await response.json();
@@ -458,11 +555,43 @@
         classification.className = `classification ${result.classification}`;
         classification.style.display = 'inline-block';
 
-        responseContent.textContent = result.analysis;
+        if (result.analyses) {
+          // Multi-model response
+          let html = `<div class="consensus-info" style="margin-bottom: 15px; padding: 10px; background: rgba(0,240,255,0.1);">
+            <strong>Consensus:</strong> <span class="consensus-badge ${result.consensus}">${result.consensus.toUpperCase()}</span>
+            <div style="margin-top: 5px; color: var(--text-dim); font-size: 0.9em;">${result.aggregatedInsights}</div>
+          </div>`;
+          
+          html += '<div class="model-results">';
+          for (const analysis of result.analyses) {
+            html += `
+              <div class="model-result ${analysis.model}">
+                <div class="model-result-header">
+                  <span class="model-name ${analysis.model}">${analysis.model === 'openai' ? 'GPT-4o-mini' : 'Claude Sonnet'}</span>
+                  <span style="color: var(--text-dim); font-size: 0.8em;">${analysis.processingTime}ms</span>
+                </div>
+                ${analysis.success 
+                  ? `<div class="response-content">${analysis.analysis}</div>`
+                  : `<div style="color: var(--warning-red);">Error: ${analysis.error}</div>`
+                }
+                ${analysis.toolsUsed.length > 0 ? `<div style="margin-top: 10px; color: var(--text-dim); font-size: 0.8em;">Tools: ${analysis.toolsUsed.join(', ')}</div>` : ''}
+              </div>
+            `;
+          }
+          html += '</div>';
+          responseContent.innerHTML = html;
 
-        document.getElementById('requestId').textContent = result.requestId;
-        document.getElementById('toolsUsed').textContent = result.toolsUsed.join(', ') || 'None';
-        document.getElementById('processingTime').textContent = `${result.processingTime}ms`;
+          document.getElementById('requestId').textContent = result.requestId;
+          document.getElementById('toolsUsed').textContent = result.analyses.flatMap(a => a.toolsUsed).join(', ') || 'None';
+          document.getElementById('processingTime').textContent = `${result.totalProcessingTime}ms`;
+        } else {
+          // Single model response
+          responseContent.textContent = result.analysis;
+          document.getElementById('requestId').textContent = result.requestId;
+          document.getElementById('toolsUsed').textContent = result.toolsUsed.join(', ') || 'None';
+          document.getElementById('processingTime').textContent = `${result.processingTime}ms`;
+        }
+        
         responseMeta.style.display = 'block';
 
       } catch (error) {

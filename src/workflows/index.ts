@@ -22,3 +22,6 @@ export {
 
 // AI Agent: NetWatch Intelligence Analyst
 export { netwatchIntelAgent } from './netwatch-agent';
+
+// AI Agent: Multi-Model Scatter/Gather
+export { netwatchMultiModel } from './netwatch-multimodel';
