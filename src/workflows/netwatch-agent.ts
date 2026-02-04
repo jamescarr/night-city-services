@@ -5,6 +5,9 @@
  * Uses Temporal's AI SDK integration for reliable LLM interactions.
  */
 
+// Load polyfills for Web APIs not available in Temporal's workflow sandbox
+import '@temporalio/ai-sdk/lib/load-polyfills';
+
 import { proxyActivities } from '@temporalio/workflow';
 import { generateText, tool } from 'ai';
 import { temporalProvider, stepCountIs } from '@temporalio/ai-sdk';
@@ -90,7 +93,7 @@ export async function netwatchIntelAgent(request: IntelRequest): Promise<IntelRe
       queryCorporateIntel: tool({
         description:
           'Query the corporate intelligence database for information about a specific corporation (Arasaka, Militech, Biotechnica, etc.)',
-        parameters: z.object({
+        inputSchema: z.object({
           corporation: z.string().describe('The name of the corporation to query'),
         }),
         execute: async (input) => {
@@ -102,7 +105,7 @@ export async function netwatchIntelAgent(request: IntelRequest): Promise<IntelRe
       queryRunnerProfile: tool({
         description:
           'Query the runner profile database for information about a specific runner/mercenary',
-        parameters: z.object({
+        inputSchema: z.object({
           handle: z.string().describe('The handle/alias of the runner to look up'),
         }),
         execute: async (input) => {
@@ -113,7 +116,7 @@ export async function netwatchIntelAgent(request: IntelRequest): Promise<IntelRe
 
       checkSecurityClearance: tool({
         description: 'Check security clearance levels for an organization (NetWatch, NCPD, Corporate)',
-        parameters: z.object({
+        inputSchema: z.object({
           organization: z.string().describe('The organization to check clearance for'),
         }),
         execute: async (input) => {
@@ -124,7 +127,7 @@ export async function netwatchIntelAgent(request: IntelRequest): Promise<IntelRe
 
       analyzeThreat: tool({
         description: 'Analyze the threat level for a specific target or operation',
-        parameters: z.object({
+        inputSchema: z.object({
           target: z.string().describe('The target of the operation'),
           operation_type: z
             .string()
@@ -138,7 +141,7 @@ export async function netwatchIntelAgent(request: IntelRequest): Promise<IntelRe
 
       searchIncidentReports: tool({
         description: 'Search NetWatch incident reports by keywords',
-        parameters: z.object({
+        inputSchema: z.object({
           keywords: z.string().describe('Keywords to search for in incident reports'),
         }),
         execute: async (input) => {

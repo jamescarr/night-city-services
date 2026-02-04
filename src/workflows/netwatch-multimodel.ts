@@ -5,6 +5,9 @@
  * Queries both OpenAI and Claude in parallel, then aggregates results.
  */
 
+// Load polyfills for Web APIs not available in Temporal's workflow sandbox
+import '@temporalio/ai-sdk/lib/load-polyfills';
+
 import { proxyActivities } from '@temporalio/workflow';
 import { generateText, tool } from 'ai';
 import { temporalProvider, stepCountIs } from '@temporalio/ai-sdk';
@@ -54,7 +57,7 @@ function createTools(toolsUsed: string[]) {
     queryCorporateIntel: tool({
       description:
         'Query the corporate intelligence database for information about a specific corporation',
-      parameters: z.object({
+      inputSchema: z.object({
         corporation: z.string().describe('The name of the corporation to query'),
       }),
       execute: async (input) => {
@@ -65,7 +68,7 @@ function createTools(toolsUsed: string[]) {
 
     queryRunnerProfile: tool({
       description: 'Query the runner profile database for information about a specific runner',
-      parameters: z.object({
+      inputSchema: z.object({
         handle: z.string().describe('The handle/alias of the runner to look up'),
       }),
       execute: async (input) => {
@@ -76,7 +79,7 @@ function createTools(toolsUsed: string[]) {
 
     checkSecurityClearance: tool({
       description: 'Check security clearance levels for an organization',
-      parameters: z.object({
+      inputSchema: z.object({
         organization: z.string().describe('The organization to check clearance for'),
       }),
       execute: async (input) => {
@@ -87,7 +90,7 @@ function createTools(toolsUsed: string[]) {
 
     analyzeThreat: tool({
       description: 'Analyze the threat level for a specific target or operation',
-      parameters: z.object({
+      inputSchema: z.object({
         target: z.string().describe('The target of the operation'),
         operation_type: z.string().describe('Type of operation'),
       }),
@@ -99,7 +102,7 @@ function createTools(toolsUsed: string[]) {
 
     searchIncidentReports: tool({
       description: 'Search NetWatch incident reports by keywords',
-      parameters: z.object({
+      inputSchema: z.object({
         keywords: z.string().describe('Keywords to search for'),
       }),
       execute: async (input) => {

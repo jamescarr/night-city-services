@@ -6,26 +6,42 @@
  * API credentials are only needed here - clients don't need access.
  */
 
-import { Worker, NativeConnection } from '@temporalio/worker';
-import { AiSDKPlugin } from '@temporalio/ai-sdk';
+import { Worker, NativeConnection, bundleWorkflowCode } from '@temporalio/worker';
+import { AiSdkPlugin } from '@temporalio/ai-sdk';
 import { openai } from '@ai-sdk/openai';
 import { anthropic } from '@ai-sdk/anthropic';
 import * as netwatchActivities from '../activities/netwatch-activities';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import type { ProviderV3 } from '@ai-sdk/provider';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const TASK_QUEUE = 'netwatch-intel';
 
 /**
- * Multi-provider model factory
- * Routes model IDs to the appropriate provider
+ * Multi-provider that implements ProviderV3 interface.
+ * Routes model IDs to the appropriate underlying provider.
  */
-function createMultiProvider() {
-  return (modelId: string) => {
-    // Route based on model ID prefix or known model names
-    if (modelId.startsWith('claude') || modelId.includes('anthropic')) {
-      return anthropic(modelId);
-    }
-    // Default to OpenAI for gpt models and others
-    return openai(modelId);
+function createMultiProvider(): ProviderV3 {
+  return {
+    languageModel(modelId: string) {
+      // Route based on model ID
+      if (modelId.startsWith('claude')) {
+        return anthropic.languageModel(modelId);
+      }
+      // Default to OpenAI for gpt models
+      return openai.languageModel(modelId);
+    },
+    textEmbeddingModel(modelId: string) {
+      // Route embedding models too
+      if (modelId.includes('anthropic')) {
+        // Anthropic doesn't have embeddings, fall back to OpenAI
+        return openai.textEmbeddingModel('text-embedding-3-small');
+      }
+      return openai.textEmbeddingModel(modelId);
+    },
   };
 }
 
@@ -62,14 +78,20 @@ async function run() {
     address: process.env.TEMPORAL_ADDRESS || 'localhost:7233',
   });
 
+  console.log('Bundling workflows...');
+  const workflowBundle = await bundleWorkflowCode({
+    workflowsPath: path.resolve(__dirname, '../workflows/index.ts'),
+  });
+  console.log('Workflows bundled.\n');
+
   const worker = await Worker.create({
     connection,
     namespace: 'default',
     taskQueue: TASK_QUEUE,
-    workflowsPath: require.resolve('../workflows'),
+    workflowBundle,
     activities: netwatchActivities,
     plugins: [
-      new AiSDKPlugin({
+      new AiSdkPlugin({
         modelProvider: createMultiProvider(),
       }),
     ],

@@ -8,9 +8,13 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { Client, Connection } from '@temporalio/client';
 import { netwatchIntelAgent } from './workflows/netwatch-agent';
 import { netwatchMultiModel } from './workflows/netwatch-multimodel';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 3000;
 const TASK_QUEUE = 'netwatch-intel';
