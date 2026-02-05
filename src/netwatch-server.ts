@@ -11,7 +11,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Client, Connection } from '@temporalio/client';
 import { netwatchIntelAgent } from './workflows/netwatch-agent';
-import { netwatchMultiModel } from './workflows/netwatch-multimodel';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,54 +69,6 @@ async function main() {
     }
   });
 
-  // Multi-model scatter/gather request
-  app.post('/api/intel/multimodel', async (req, res) => {
-    try {
-      const {
-        query,
-        priority = 'routine',
-        requester = 'Anonymous',
-        models = ['openai', 'anthropic'],
-      } = req.body;
-
-      if (!query) {
-        res.status(400).json({ error: 'Query is required' });
-        return;
-      }
-
-      if (!Array.isArray(models) || models.length === 0) {
-        res.status(400).json({ error: 'At least one model must be specified' });
-        return;
-      }
-
-      const requestId = `REQ-${Date.now()}`;
-
-      console.log('─'.repeat(50));
-      console.log(`[API] Multi-model request: ${requestId}`);
-      console.log(`[API] Models: ${models.join(', ')}`);
-      console.log(`[API] Requester: ${requester}`);
-      console.log(`[API] Query: ${query.substring(0, 80)}...`);
-
-      const handle = await client.workflow.start(netwatchMultiModel, {
-        taskQueue: TASK_QUEUE,
-        workflowId: `netwatch-multi-${requestId}`,
-        args: [{ requestId, query, requester, priority, models }],
-      });
-
-      console.log(`[API] Workflow: ${handle.workflowId}`);
-      const result = await handle.result();
-      console.log(`[API] Complete: ${result.consensus} consensus, ${result.analyses.length} models`);
-      console.log('─'.repeat(50));
-
-      res.json(result);
-    } catch (error) {
-      console.error('[API] Error:', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Internal server error',
-      });
-    }
-  });
-
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({ status: 'online', service: 'NetWatch Intelligence API' });
@@ -128,13 +79,12 @@ async function main() {
     console.log('NETWATCH INTELLIGENCE API SERVER');
     console.log('═'.repeat(50));
     console.log();
-    console.log(`Frontend:     http://localhost:${PORT}`);
-    console.log(`Single Model: POST /api/intel`);
-    console.log(`Multi-Model:  POST /api/intel/multimodel`);
+    console.log(`Frontend: http://localhost:${PORT}`);
+    console.log(`API:      POST /api/intel`);
+    console.log(`Health:   GET /api/health`);
     console.log();
     console.log('Note: Make sure the NetWatch worker is running!');
     console.log('  pnpm run netwatch:worker');
-    console.log();
     console.log('─'.repeat(50));
   });
 }

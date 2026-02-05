@@ -171,25 +171,11 @@ export async function netwatchIntelAgent(request: IntelRequest): Promise<IntelRe
   console.log(`Tools Used: ${toolsUsed.join(', ') || 'None'}`);
   console.log(`Processing Time: ${processingTime}ms`);
   console.log(`Classification: ${classification}`);
-  console.log(`Steps: ${result.steps?.length || 0}`);
-  console.log(`Text length: ${result.text?.length || 0}`);
   console.log('═'.repeat(60));
-
-  // Get the full response - combine all text from steps if needed
-  let fullAnalysis = result.text;
-  
-  // If result.text is short and we have steps, the model may have stopped after tool use
-  // Log for debugging
-  if (result.steps && result.steps.length > 0) {
-    console.log('Step details:');
-    result.steps.forEach((step: { text?: string; toolCalls?: unknown[] }, i: number) => {
-      console.log(`  Step ${i + 1}: text=${step.text?.length || 0} chars, toolCalls=${step.toolCalls?.length || 0}`);
-    });
-  }
 
   return {
     requestId: request.requestId,
-    analysis: fullAnalysis,
+    analysis: result.text,
     toolsUsed,
     processingTime,
     classification,

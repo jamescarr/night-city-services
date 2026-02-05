@@ -173,27 +173,10 @@
       background: var(--darker-bg);
     }
 
-    .model-checkbox {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
+    .model-badge {
+      color: #d4a574;
+      font-weight: bold;
     }
-
-    .model-checkbox input {
-      accent-color: var(--neon-cyan);
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-    }
-
-    .model-checkbox label {
-      cursor: pointer;
-      font-size: 0.9em;
-    }
-
-    .model-checkbox.openai label { color: var(--terminal-green); }
-    .model-checkbox.anthropic label { color: #d4a574; }
 
     .submit-btn {
       background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
@@ -218,45 +201,6 @@
       cursor: not-allowed;
       transform: none;
     }
-
-    .model-results {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .model-result {
-      border: 1px solid var(--text-dim);
-      padding: 15px;
-    }
-
-    .model-result.openai { border-left: 3px solid var(--terminal-green); }
-    .model-result.anthropic { border-left: 3px solid #d4a574; }
-
-    .model-result-header {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--text-dim);
-    }
-
-    .model-name {
-      font-weight: bold;
-    }
-
-    .model-name.openai { color: var(--terminal-green); }
-    .model-name.anthropic { color: #d4a574; }
-
-    .consensus-badge {
-      padding: 3px 10px;
-      font-size: 0.8em;
-      font-weight: bold;
-    }
-
-    .consensus-badge.full { background: var(--terminal-green); color: var(--dark-bg); }
-    .consensus-badge.partial { background: var(--neon-yellow); color: var(--dark-bg); }
-    .consensus-badge.divergent { background: var(--warning-red); color: white; }
 
     .response-section {
       background: var(--darker-bg);
@@ -406,10 +350,8 @@
 
       <div class="controls">
         <div class="model-selection">
-          <span style="color: var(--text-dim); margin-right: 5px;">Model:</span>
-          <div class="model-checkbox anthropic">
-            <span style="color: #d4a574;">Claude Sonnet</span>
-          </div>
+          <span style="color: var(--text-dim);">Model:</span>
+          <span class="model-badge">Claude Sonnet</span>
         </div>
 
         <select class="priority-select" id="prioritySelect">
@@ -497,8 +439,6 @@
         return;
       }
 
-      const models = ['anthropic'];
-
       const submitBtn = document.getElementById('submitBtn');
       const responseContent = document.getElementById('responseContent');
       const responseSection = document.getElementById('responseSection');
@@ -512,22 +452,18 @@
       classification.style.display = 'none';
       responseMeta.style.display = 'none';
 
-      const modelNames = 'Claude';
       responseContent.innerHTML = `
         <div class="loading">
           <div class="loading-spinner"></div>
-          <span>Querying ${modelNames}...</span>
+          <span>Querying Claude...</span>
         </div>
       `;
 
       try {
-        // Single model endpoint
-        const endpoint = '/api/intel';
-        
-        const response = await fetch(endpoint, {
+        const response = await fetch('/api/intel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, priority, requester, models })
+          body: JSON.stringify({ query, priority, requester })
         });
 
         const result = await response.json();
@@ -541,42 +477,10 @@
         classification.className = `classification ${result.classification}`;
         classification.style.display = 'inline-block';
 
-        if (result.analyses) {
-          // Multi-model response
-          let html = `<div class="consensus-info" style="margin-bottom: 15px; padding: 10px; background: rgba(0,240,255,0.1);">
-            <strong>Consensus:</strong> <span class="consensus-badge ${result.consensus}">${result.consensus.toUpperCase()}</span>
-            <div style="margin-top: 5px; color: var(--text-dim); font-size: 0.9em;">${result.aggregatedInsights}</div>
-          </div>`;
-          
-          html += '<div class="model-results">';
-          for (const analysis of result.analyses) {
-            html += `
-              <div class="model-result ${analysis.model}">
-                <div class="model-result-header">
-                  <span class="model-name ${analysis.model}">${analysis.model === 'openai' ? 'GPT-4o-mini' : 'Claude Sonnet'}</span>
-                  <span style="color: var(--text-dim); font-size: 0.8em;">${analysis.processingTime}ms</span>
-                </div>
-                ${analysis.success 
-                  ? `<div class="response-content">${analysis.analysis}</div>`
-                  : `<div style="color: var(--warning-red);">Error: ${analysis.error}</div>`
-                }
-                ${analysis.toolsUsed.length > 0 ? `<div style="margin-top: 10px; color: var(--text-dim); font-size: 0.8em;">Tools: ${analysis.toolsUsed.join(', ')}</div>` : ''}
-              </div>
-            `;
-          }
-          html += '</div>';
-          responseContent.innerHTML = html;
-
-          document.getElementById('requestId').textContent = result.requestId;
-          document.getElementById('toolsUsed').textContent = result.analyses.flatMap(a => a.toolsUsed).join(', ') || 'None';
-          document.getElementById('processingTime').textContent = `${result.totalProcessingTime}ms`;
-        } else {
-          // Single model response
-          responseContent.textContent = result.analysis;
-          document.getElementById('requestId').textContent = result.requestId;
-          document.getElementById('toolsUsed').textContent = result.toolsUsed.join(', ') || 'None';
-          document.getElementById('processingTime').textContent = `${result.processingTime}ms`;
-        }
+        responseContent.textContent = result.analysis;
+        document.getElementById('requestId').textContent = result.requestId;
+        document.getElementById('toolsUsed').textContent = result.toolsUsed.join(', ') || 'None';
+        document.getElementById('processingTime').textContent = `${result.processingTime}ms`;
         
         responseMeta.style.display = 'block';
 
