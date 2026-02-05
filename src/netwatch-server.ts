@@ -32,7 +32,7 @@ async function main() {
   // Serve static frontend
   app.use(express.static(path.join(__dirname, '../frontend')));
 
-  // Single model intelligence request
+  // Multi-model scatter/gather intelligence request
   app.post('/api/intel', async (req, res) => {
     try {
       const { query, priority = 'routine', requester = 'Anonymous' } = req.body;
@@ -45,9 +45,10 @@ async function main() {
       const requestId = `REQ-${Date.now()}`;
 
       console.log('─'.repeat(50));
-      console.log(`[API] Single-model request: ${requestId}`);
+      console.log(`[API] Scatter/Gather request: ${requestId}`);
+      console.log(`[API] Models: Haiku, Sonnet, Opus`);
       console.log(`[API] Requester: ${requester}`);
-      console.log(`[API] Query: ${query.substring(0, 80)}...`);
+      console.log(`[API] Query: ${query.substring(0, 80)}${query.length > 80 ? '...' : ''}`);
 
       const handle = await client.workflow.start(netwatchIntelAgent, {
         taskQueue: TASK_QUEUE,
@@ -57,7 +58,9 @@ async function main() {
 
       console.log(`[API] Workflow: ${handle.workflowId}`);
       const result = await handle.result();
-      console.log(`[API] Complete: ${result.classification}`);
+      
+      const successCount = result.analyses.filter((a: { success: boolean }) => a.success).length;
+      console.log(`[API] Complete: ${successCount}/3 models succeeded, ${result.totalProcessingTime}ms`);
       console.log('─'.repeat(50));
 
       res.json(result);
@@ -76,14 +79,14 @@ async function main() {
 
   app.listen(PORT, () => {
     console.log('═'.repeat(50));
-    console.log('NETWATCH INTELLIGENCE API SERVER');
+    console.log('NETWATCH MULTI-MODEL INTELLIGENCE SERVER');
+    console.log('Scatter/Gather: Haiku + Sonnet + Opus');
     console.log('═'.repeat(50));
     console.log();
     console.log(`Frontend: http://localhost:${PORT}`);
     console.log(`API:      POST /api/intel`);
-    console.log(`Health:   GET /api/health`);
     console.log();
-    console.log('Note: Make sure the NetWatch worker is running!');
+    console.log('Make sure the NetWatch worker is running:');
     console.log('  pnpm run netwatch:worker');
     console.log('─'.repeat(50));
   });

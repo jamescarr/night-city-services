@@ -1,8 +1,9 @@
 /**
- * NetWatch Intelligence Agent
+ * NetWatch Intelligence Agent - Multi-Model Scatter/Gather
  *
- * A durable AI agent that analyzes intelligence for Night City operations.
- * Uses Temporal's AI SDK integration for reliable LLM interactions.
+ * Queries multiple Claude models in parallel (Haiku, Sonnet, Opus) and
+ * aggregates their analyses. Demonstrates the scatter/gather pattern
+ * with AI models of varying capability and cost.
  */
 
 // Load polyfills for Web APIs not available in Temporal's workflow sandbox
@@ -21,12 +22,34 @@ const {
   analyzeThreat,
   searchIncidentReports,
 } = proxyActivities<typeof activities>({
-  startToCloseTimeout: '30 seconds',
+  startToCloseTimeout: '60 seconds',
   retry: {
     initialInterval: '1 second',
     maximumAttempts: 3,
   },
 });
+
+// Claude model configurations
+const CLAUDE_MODELS = {
+  haiku: {
+    id: 'claude-3-5-haiku-20241022',
+    name: 'Haiku',
+    tier: 'Fast & Efficient',
+    color: '#10b981', // green
+  },
+  sonnet: {
+    id: 'claude-sonnet-4-20250514',
+    name: 'Sonnet',
+    tier: 'Balanced',
+    color: '#3b82f6', // blue
+  },
+  opus: {
+    id: 'claude-3-opus-20240229',
+    name: 'Opus',
+    tier: 'Most Capable',
+    color: '#8b5cf6', // purple
+  },
+} as const;
 
 const NETWATCH_SYSTEM_PROMPT = `You are a NetWatch Intelligence Analyst AI operating in Night City, 2077.
 
@@ -51,6 +74,7 @@ When analyzing requests:
 
 Remember: In Night City, information is currency. Every piece of intel you provide could mean the difference between a successful run and a body bag.`;
 
+// Types
 export interface IntelRequest {
   requestId: string;
   query: string;
@@ -58,26 +82,148 @@ export interface IntelRequest {
   priority: 'routine' | 'urgent' | 'critical';
 }
 
-export interface IntelResponse {
-  requestId: string;
+export interface ModelAnalysis {
+  model: keyof typeof CLAUDE_MODELS;
+  modelName: string;
+  modelTier: string;
+  modelColor: string;
   analysis: string;
   toolsUsed: string[];
   processingTime: number;
+  success: boolean;
+  error?: string;
+}
+
+export interface IntelResponse {
+  requestId: string;
+  analyses: ModelAnalysis[];
+  totalProcessingTime: number;
   classification: 'PUBLIC' | 'RESTRICTED' | 'CLASSIFIED' | 'TOP_SECRET';
 }
 
 /**
- * NetWatch Intelligence Agent Workflow
- *
- * Processes intelligence requests using AI with durable execution.
- * The agent has access to various tools for gathering and analyzing intel.
+ * Create tools for AI model - each model gets its own toolsUsed array
  */
-export async function netwatchIntelAgent(request: IntelRequest): Promise<IntelResponse> {
+function createTools(toolsUsed: string[]) {
+  return {
+    queryCorporateIntel: tool({
+      description: 'Query the corporate intelligence database for information about a specific corporation',
+      inputSchema: z.object({
+        corporation: z.string().describe('The name of the corporation to query'),
+      }),
+      execute: async (input) => {
+        toolsUsed.push('queryCorporateIntel');
+        return await queryCorporateIntel(input);
+      },
+    }),
+    queryRunnerProfile: tool({
+      description: 'Query the runner profile database for information about a specific runner/mercenary',
+      inputSchema: z.object({
+        handle: z.string().describe('The handle/alias of the runner to look up'),
+      }),
+      execute: async (input) => {
+        toolsUsed.push('queryRunnerProfile');
+        return await queryRunnerProfile(input);
+      },
+    }),
+    checkSecurityClearance: tool({
+      description: 'Check security clearance levels for an organization',
+      inputSchema: z.object({
+        organization: z.string().describe('The organization to check clearance for'),
+      }),
+      execute: async (input) => {
+        toolsUsed.push('checkSecurityClearance');
+        return await checkSecurityClearance(input);
+      },
+    }),
+    analyzeThreat: tool({
+      description: 'Analyze the threat level for a specific target or operation',
+      inputSchema: z.object({
+        target: z.string().describe('The target of the operation'),
+        operation_type: z.string().describe('Type of operation'),
+      }),
+      execute: async (input) => {
+        toolsUsed.push('analyzeThreat');
+        return await analyzeThreat(input);
+      },
+    }),
+    searchIncidentReports: tool({
+      description: 'Search NetWatch incident reports by keywords',
+      inputSchema: z.object({
+        keywords: z.string().describe('Keywords to search for'),
+      }),
+      execute: async (input) => {
+        toolsUsed.push('searchIncidentReports');
+        return await searchIncidentReports(input);
+      },
+    }),
+  };
+}
+
+/**
+ * Query a single Claude model
+ */
+async function queryModel(
+  modelKey: keyof typeof CLAUDE_MODELS,
+  query: string
+): Promise<ModelAnalysis> {
+  const modelConfig = CLAUDE_MODELS[modelKey];
   const startTime = Date.now();
   const toolsUsed: string[] = [];
 
+  console.log(`  → Querying ${modelConfig.name} (${modelConfig.tier})...`);
+
+  try {
+    const result = await generateText({
+      model: temporalProvider.languageModel(modelConfig.id),
+      prompt: query,
+      system: NETWATCH_SYSTEM_PROMPT,
+      tools: createTools(toolsUsed),
+      stopWhen: stepCountIs(10),
+    });
+
+    const processingTime = Date.now() - startTime;
+    console.log(`  ✓ ${modelConfig.name} complete (${processingTime}ms)`);
+
+    return {
+      model: modelKey,
+      modelName: modelConfig.name,
+      modelTier: modelConfig.tier,
+      modelColor: modelConfig.color,
+      analysis: result.text,
+      toolsUsed,
+      processingTime,
+      success: true,
+    };
+  } catch (error) {
+    const processingTime = Date.now() - startTime;
+    console.log(`  ✗ ${modelConfig.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+    return {
+      model: modelKey,
+      modelName: modelConfig.name,
+      modelTier: modelConfig.tier,
+      modelColor: modelConfig.color,
+      analysis: '',
+      toolsUsed,
+      processingTime,
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * NetWatch Intelligence Agent - Multi-Model Scatter/Gather
+ *
+ * Queries Haiku, Sonnet, and Opus in parallel and returns all analyses.
+ */
+export async function netwatchIntelAgent(request: IntelRequest): Promise<IntelResponse> {
+  const startTime = Date.now();
+
   console.log('═'.repeat(60));
-  console.log('NETWATCH INTELLIGENCE AGENT');
+  console.log('NETWATCH MULTI-MODEL INTELLIGENCE AGENT');
+  console.log('Scatter/Gather across Claude Model Family');
   console.log('═'.repeat(60));
   console.log(`Request ID: ${request.requestId}`);
   console.log(`Requester: ${request.requester}`);
@@ -85,99 +231,50 @@ export async function netwatchIntelAgent(request: IntelRequest): Promise<IntelRe
   console.log(`Query: ${request.query}`);
   console.log('─'.repeat(60));
 
-  const result = await generateText({
-    model: temporalProvider.languageModel('claude-sonnet-4-20250514'),
-    prompt: request.query,
-    system: NETWATCH_SYSTEM_PROMPT,
-    tools: {
-      queryCorporateIntel: tool({
-        description:
-          'Query the corporate intelligence database for information about a specific corporation (Arasaka, Militech, Biotechnica, etc.)',
-        inputSchema: z.object({
-          corporation: z.string().describe('The name of the corporation to query'),
-        }),
-        execute: async (input) => {
-          toolsUsed.push('queryCorporateIntel');
-          return await queryCorporateIntel(input);
-        },
-      }),
+  // SCATTER: Query all three models in parallel
+  console.log('\n▶ SCATTER: Dispatching to all models...');
+  
+  const modelPromises = [
+    queryModel('haiku', request.query),
+    queryModel('sonnet', request.query),
+    queryModel('opus', request.query),
+  ];
 
-      queryRunnerProfile: tool({
-        description:
-          'Query the runner profile database for information about a specific runner/mercenary',
-        inputSchema: z.object({
-          handle: z.string().describe('The handle/alias of the runner to look up'),
-        }),
-        execute: async (input) => {
-          toolsUsed.push('queryRunnerProfile');
-          return await queryRunnerProfile(input);
-        },
-      }),
+  // Wait for all models (don't fail if one fails)
+  const analyses = await Promise.all(modelPromises);
 
-      checkSecurityClearance: tool({
-        description: 'Check security clearance levels for an organization (NetWatch, NCPD, Corporate)',
-        inputSchema: z.object({
-          organization: z.string().describe('The organization to check clearance for'),
-        }),
-        execute: async (input) => {
-          toolsUsed.push('checkSecurityClearance');
-          return await checkSecurityClearance(input);
-        },
-      }),
+  // GATHER: Aggregate results
+  console.log('\n▶ GATHER: Aggregating results...');
 
-      analyzeThreat: tool({
-        description: 'Analyze the threat level for a specific target or operation',
-        inputSchema: z.object({
-          target: z.string().describe('The target of the operation'),
-          operation_type: z
-            .string()
-            .describe('Type of operation (e.g., extraction, infiltration, data theft)'),
-        }),
-        execute: async (input) => {
-          toolsUsed.push('analyzeThreat');
-          return await analyzeThreat(input);
-        },
-      }),
+  const successCount = analyses.filter((a) => a.success).length;
+  const failCount = analyses.filter((a) => !a.success).length;
 
-      searchIncidentReports: tool({
-        description: 'Search NetWatch incident reports by keywords',
-        inputSchema: z.object({
-          keywords: z.string().describe('Keywords to search for in incident reports'),
-        }),
-        execute: async (input) => {
-          toolsUsed.push('searchIncidentReports');
-          return await searchIncidentReports(input);
-        },
-      }),
-    },
-    stopWhen: stepCountIs(10),
-  });
+  console.log(`  ${successCount} succeeded, ${failCount} failed`);
 
-  const processingTime = Date.now() - startTime;
-
-  // Determine classification based on content and tools used
+  // Determine classification based on tools used across all models
+  const allToolsUsed = analyses.flatMap((a) => a.toolsUsed);
   let classification: IntelResponse['classification'] = 'PUBLIC';
-  if (toolsUsed.includes('analyzeThreat')) {
+  if (allToolsUsed.includes('analyzeThreat')) {
     classification = 'CLASSIFIED';
-  } else if (toolsUsed.includes('queryCorporateIntel') || toolsUsed.includes('queryRunnerProfile')) {
+  } else if (allToolsUsed.includes('queryCorporateIntel') || allToolsUsed.includes('queryRunnerProfile')) {
     classification = 'RESTRICTED';
   }
   if (request.priority === 'critical') {
     classification = 'TOP_SECRET';
   }
 
+  const totalProcessingTime = Date.now() - startTime;
+
   console.log('─'.repeat(60));
-  console.log('ANALYSIS COMPLETE');
-  console.log(`Tools Used: ${toolsUsed.join(', ') || 'None'}`);
-  console.log(`Processing Time: ${processingTime}ms`);
+  console.log('MULTI-MODEL ANALYSIS COMPLETE');
   console.log(`Classification: ${classification}`);
+  console.log(`Total Time: ${totalProcessingTime}ms`);
   console.log('═'.repeat(60));
 
   return {
     requestId: request.requestId,
-    analysis: result.text,
-    toolsUsed,
-    processingTime,
+    analyses,
+    totalProcessingTime,
     classification,
   };
 }

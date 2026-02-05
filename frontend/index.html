@@ -14,13 +14,12 @@
       --terminal-green: #00ff41;
       --warning-red: #ff3333;
       --text-dim: #666680;
+      --haiku-color: #10b981;
+      --sonnet-color: #3b82f6;
+      --opus-color: #8b5cf6;
     }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: 'Courier New', monospace;
@@ -32,25 +31,14 @@
 
     .scanline {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       pointer-events: none;
-      background: repeating-linear-gradient(
-        0deg,
-        rgba(0, 0, 0, 0.1) 0px,
-        rgba(0, 0, 0, 0.1) 1px,
-        transparent 1px,
-        transparent 2px
-      );
+      background: repeating-linear-gradient(0deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 2px);
       z-index: 1000;
     }
 
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-    }
+    .container { max-width: 1400px; margin: 0 auto; }
 
     header {
       text-align: center;
@@ -67,11 +55,7 @@
       letter-spacing: 5px;
     }
 
-    .subtitle {
-      color: var(--text-dim);
-      margin-top: 10px;
-      font-size: 0.9em;
-    }
+    .subtitle { color: var(--text-dim); margin-top: 10px; font-size: 0.9em; }
 
     .status-bar {
       display: flex;
@@ -83,29 +67,16 @@
       font-size: 0.8em;
     }
 
-    .status-indicator {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    .status-indicator { display: flex; align-items: center; gap: 8px; }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 8px; height: 8px;
       border-radius: 50%;
       background: var(--terminal-green);
       animation: pulse 2s infinite;
     }
 
-    .status-dot.offline {
-      background: var(--warning-red);
-      animation: none;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
     .query-section {
       background: var(--darker-bg);
@@ -130,7 +101,7 @@
       font-family: inherit;
       font-size: 1em;
       resize: vertical;
-      min-height: 100px;
+      min-height: 80px;
     }
 
     .query-input:focus {
@@ -139,9 +110,7 @@
       box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
     }
 
-    .query-input::placeholder {
-      color: var(--text-dim);
-    }
+    .query-input::placeholder { color: var(--text-dim); }
 
     .controls {
       display: flex;
@@ -151,6 +120,26 @@
       align-items: center;
     }
 
+    .model-info {
+      display: flex;
+      gap: 15px;
+      padding: 10px;
+      border: 1px solid var(--text-dim);
+      background: var(--darker-bg);
+      flex-wrap: wrap;
+    }
+
+    .model-tag {
+      padding: 4px 10px;
+      border-radius: 3px;
+      font-size: 0.8em;
+      font-weight: bold;
+    }
+
+    .model-tag.haiku { background: var(--haiku-color); color: #000; }
+    .model-tag.sonnet { background: var(--sonnet-color); color: #fff; }
+    .model-tag.opus { background: var(--opus-color); color: #fff; }
+
     .priority-select {
       background: var(--darker-bg);
       border: 1px solid var(--text-dim);
@@ -158,24 +147,6 @@
       padding: 10px 15px;
       font-family: inherit;
       cursor: pointer;
-    }
-
-    .priority-select:focus {
-      outline: none;
-      border-color: var(--neon-cyan);
-    }
-
-    .model-selection {
-      display: flex;
-      gap: 15px;
-      padding: 10px;
-      border: 1px solid var(--text-dim);
-      background: var(--darker-bg);
-    }
-
-    .model-badge {
-      color: #d4a574;
-      font-weight: bold;
     }
 
     .submit-btn {
@@ -206,12 +177,9 @@
       background: var(--darker-bg);
       border: 1px solid var(--terminal-green);
       padding: 20px;
-      min-height: 200px;
     }
 
-    .response-section.error {
-      border-color: var(--warning-red);
-    }
+    .response-section.error { border-color: var(--warning-red); }
 
     .response-header {
       display: flex;
@@ -233,9 +201,73 @@
     .classification.CLASSIFIED { background: orange; color: var(--dark-bg); }
     .classification.TOP_SECRET { background: var(--warning-red); color: white; }
 
-    .response-content {
+    .model-results {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+    }
+
+    @media (max-width: 1200px) {
+      .model-results { grid-template-columns: 1fr; }
+    }
+
+    .model-card {
+      border: 1px solid var(--text-dim);
+      background: var(--dark-bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .model-card.haiku { border-top: 3px solid var(--haiku-color); }
+    .model-card.sonnet { border-top: 3px solid var(--sonnet-color); }
+    .model-card.opus { border-top: 3px solid var(--opus-color); }
+
+    .model-card-header {
+      padding: 12px 15px;
+      border-bottom: 1px solid var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .model-card-name {
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+
+    .model-card.haiku .model-card-name { color: var(--haiku-color); }
+    .model-card.sonnet .model-card-name { color: var(--sonnet-color); }
+    .model-card.opus .model-card-name { color: var(--opus-color); }
+
+    .model-card-tier {
+      font-size: 0.75em;
+      color: var(--text-dim);
+    }
+
+    .model-card-time {
+      font-size: 0.8em;
+      color: var(--text-dim);
+    }
+
+    .model-card-content {
+      padding: 15px;
+      flex: 1;
+      overflow-y: auto;
+      max-height: 400px;
       white-space: pre-wrap;
-      line-height: 1.6;
+      line-height: 1.5;
+      font-size: 0.9em;
+    }
+
+    .model-card-footer {
+      padding: 10px 15px;
+      border-top: 1px solid var(--text-dim);
+      font-size: 0.75em;
+      color: var(--text-dim);
+    }
+
+    .model-card.error .model-card-content {
+      color: var(--warning-red);
     }
 
     .response-meta {
@@ -244,37 +276,54 @@
       border-top: 1px solid var(--text-dim);
       font-size: 0.8em;
       color: var(--text-dim);
+      display: flex;
+      gap: 30px;
     }
 
     .loading {
       display: flex;
+      flex-direction: column;
       align-items: center;
       gap: 15px;
+      padding: 40px;
       color: var(--neon-cyan);
     }
 
     .loading-spinner {
-      width: 20px;
-      height: 20px;
-      border: 2px solid var(--text-dim);
+      width: 40px; height: 40px;
+      border: 3px solid var(--text-dim);
       border-top-color: var(--neon-cyan);
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .loading-models {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
     }
 
-    .sample-queries {
-      margin-top: 15px;
+    .loading-model {
+      padding: 5px 12px;
+      border-radius: 3px;
+      font-size: 0.8em;
+      opacity: 0.5;
+      animation: loadPulse 1.5s ease-in-out infinite;
     }
 
-    .sample-queries summary {
-      cursor: pointer;
-      color: var(--text-dim);
-      font-size: 0.9em;
+    .loading-model:nth-child(1) { animation-delay: 0s; }
+    .loading-model:nth-child(2) { animation-delay: 0.3s; }
+    .loading-model:nth-child(3) { animation-delay: 0.6s; }
+
+    @keyframes loadPulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
     }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .sample-queries { margin-top: 15px; }
+    .sample-queries summary { cursor: pointer; color: var(--text-dim); font-size: 0.9em; }
 
     .sample-list {
       margin-top: 10px;
@@ -309,14 +358,18 @@
       border-top: 1px solid var(--text-dim);
     }
 
-    .glitch {
-      animation: glitch 3s infinite;
-    }
+    .glitch { animation: glitch 3s infinite; }
 
     @keyframes glitch {
       0%, 90%, 100% { text-shadow: 0 0 10px var(--neon-cyan); }
       92% { text-shadow: -2px 0 var(--neon-magenta), 2px 0 var(--neon-cyan); }
       94% { text-shadow: 2px 0 var(--neon-magenta), -2px 0 var(--neon-cyan); }
+    }
+
+    .initial-message {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-dim);
     }
   </style>
 </head>
@@ -326,7 +379,7 @@
   <div class="container">
     <header>
       <div class="logo glitch">NETWATCH</div>
-      <div class="subtitle">INTELLIGENCE ANALYSIS TERMINAL v2.077</div>
+      <div class="subtitle">MULTI-MODEL INTELLIGENCE TERMINAL // SCATTER/GATHER v2.077</div>
     </header>
 
     <div class="status-bar">
@@ -334,9 +387,7 @@
         <div class="status-dot" id="statusDot"></div>
         <span id="statusText">SYSTEM ONLINE</span>
       </div>
-      <div>
-        <span id="currentTime"></span>
-      </div>
+      <div><span id="currentTime"></span></div>
     </div>
 
     <div class="query-section">
@@ -345,13 +396,15 @@
       <textarea 
         class="query-input" 
         id="queryInput"
-        placeholder="Enter your intelligence query...&#10;&#10;Examples:&#10;- What do we know about Arasaka's security vulnerabilities?&#10;- Give me a threat assessment for a data extraction at Militech&#10;- Search for incidents related to Pacifica"
+        placeholder="Enter your intelligence query... (e.g., What do we know about Arasaka's security?)"
       ></textarea>
 
       <div class="controls">
-        <div class="model-selection">
-          <span style="color: var(--text-dim);">Model:</span>
-          <span class="model-badge">Claude Sonnet</span>
+        <div class="model-info">
+          <span style="color: var(--text-dim);">Querying:</span>
+          <span class="model-tag haiku">Haiku</span>
+          <span class="model-tag sonnet">Sonnet</span>
+          <span class="model-tag opus">Opus</span>
         </div>
 
         <select class="priority-select" id="prioritySelect">
@@ -360,28 +413,18 @@
           <option value="critical">CRITICAL</option>
         </select>
 
-        <input type="text" class="priority-select" id="requesterInput" placeholder="Requester Handle" value="Anonymous">
+        <input type="text" class="priority-select" id="requesterInput" placeholder="Requester" value="Anonymous">
 
-        <button class="submit-btn" id="submitBtn" onclick="submitQuery()">
-          ANALYZE
-        </button>
+        <button class="submit-btn" id="submitBtn" onclick="submitQuery()">SCATTER/GATHER</button>
       </div>
 
       <details class="sample-queries">
         <summary>Sample Queries</summary>
         <div class="sample-list">
-          <button class="sample-query" onclick="useQuery('What do we know about Arasaka? I need intel for a potential job.')">
-            Corporate Intel: Arasaka
-          </button>
-          <button class="sample-query" onclick="useQuery('I need a threat assessment for an extraction operation at Biotechnica Flats.')">
-            Threat Assessment: Biotechnica Extraction
-          </button>
-          <button class="sample-query" onclick="useQuery('Search for any incidents related to the Blackwall.')">
-            Incident Search: Blackwall
-          </button>
-          <button class="sample-query" onclick="useQuery('Give me everything you have on the runner known as V.')">
-            Runner Profile: V
-          </button>
+          <button class="sample-query" onclick="useQuery('What do we know about Arasaka? I need intel for a potential job.')">Corporate Intel: Arasaka</button>
+          <button class="sample-query" onclick="useQuery('I need a threat assessment for an extraction operation at Biotechnica Flats.')">Threat Assessment: Biotechnica</button>
+          <button class="sample-query" onclick="useQuery('Search for any incidents related to the Blackwall.')">Incident Search: Blackwall</button>
+          <button class="sample-query" onclick="useQuery('Give me everything you have on the runner known as V.')">Runner Profile: V</button>
         </div>
       </details>
     </div>
@@ -391,35 +434,31 @@
         <span class="section-header" style="margin: 0; padding: 0; border: none;">&gt; ANALYSIS RESULTS</span>
         <span class="classification" id="classification" style="display: none;">PUBLIC</span>
       </div>
-      <div class="response-content" id="responseContent">
-        Awaiting intelligence request...
+      <div id="responseContent">
+        <div class="initial-message">
+          Awaiting intelligence request...<br>
+          <small>Query will be sent to Haiku, Sonnet, and Opus in parallel</small>
+        </div>
       </div>
       <div class="response-meta" id="responseMeta" style="display: none;">
         <div>Request ID: <span id="requestId">-</span></div>
-        <div>Tools Used: <span id="toolsUsed">-</span></div>
-        <div>Processing Time: <span id="processingTime">-</span></div>
+        <div>Total Time: <span id="processingTime">-</span></div>
       </div>
     </div>
 
     <footer>
       NetWatch Intelligence Division // Night City Bureau<br>
-      Powered by Temporal Durable Execution
+      Powered by Temporal Durable Execution + Claude Model Family
     </footer>
   </div>
 
   <script>
-    // Update time display
     function updateTime() {
       const now = new Date();
       document.getElementById('currentTime').textContent = 
         now.toLocaleString('en-US', { 
-          hour12: false, 
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
+          hour12: false, year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
         }).replace(',', ' //');
     }
     setInterval(updateTime, 1000);
@@ -445,7 +484,6 @@
       const classification = document.getElementById('classification');
       const responseMeta = document.getElementById('responseMeta');
 
-      // Show loading state
       submitBtn.disabled = true;
       submitBtn.textContent = 'PROCESSING...';
       responseSection.classList.remove('error');
@@ -455,7 +493,12 @@
       responseContent.innerHTML = `
         <div class="loading">
           <div class="loading-spinner"></div>
-          <span>Querying Claude...</span>
+          <span>Scatter/Gather in progress...</span>
+          <div class="loading-models">
+            <span class="loading-model model-tag haiku">Haiku</span>
+            <span class="loading-model model-tag sonnet">Sonnet</span>
+            <span class="loading-model model-tag opus">Opus</span>
+          </div>
         </div>
       `;
 
@@ -472,32 +515,50 @@
           throw new Error(result.error || 'Request failed');
         }
 
-        // Show results
         classification.textContent = result.classification;
         classification.className = `classification ${result.classification}`;
         classification.style.display = 'inline-block';
 
-        responseContent.textContent = result.analysis;
-        document.getElementById('requestId').textContent = result.requestId;
-        document.getElementById('toolsUsed').textContent = result.toolsUsed.join(', ') || 'None';
-        document.getElementById('processingTime').textContent = `${result.processingTime}ms`;
+        // Render multi-model results
+        let html = '<div class="model-results">';
         
-        responseMeta.style.display = 'block';
+        for (const analysis of result.analyses) {
+          const cardClass = analysis.success ? '' : 'error';
+          html += `
+            <div class="model-card ${analysis.model} ${cardClass}">
+              <div class="model-card-header">
+                <div>
+                  <div class="model-card-name">${analysis.modelName}</div>
+                  <div class="model-card-tier">${analysis.modelTier}</div>
+                </div>
+                <div class="model-card-time">${analysis.processingTime}ms</div>
+              </div>
+              <div class="model-card-content">${analysis.success ? analysis.analysis : 'Error: ' + analysis.error}</div>
+              <div class="model-card-footer">
+                Tools: ${analysis.toolsUsed.length > 0 ? analysis.toolsUsed.join(', ') : 'None'}
+              </div>
+            </div>
+          `;
+        }
+        
+        html += '</div>';
+        responseContent.innerHTML = html;
+
+        document.getElementById('requestId').textContent = result.requestId;
+        document.getElementById('processingTime').textContent = `${result.totalProcessingTime}ms`;
+        responseMeta.style.display = 'flex';
 
       } catch (error) {
         responseSection.classList.add('error');
-        responseContent.innerHTML = `<span style="color: var(--warning-red);">ERROR: ${error.message}</span>`;
+        responseContent.innerHTML = `<div class="initial-message" style="color: var(--warning-red);">ERROR: ${error.message}</div>`;
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'ANALYZE';
+        submitBtn.textContent = 'SCATTER/GATHER';
       }
     }
 
-    // Allow Ctrl+Enter to submit
     document.getElementById('queryInput').addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.key === 'Enter') {
-        submitQuery();
-      }
+      if (e.ctrlKey && e.key === 'Enter') submitQuery();
     });
   </script>
 </body>
