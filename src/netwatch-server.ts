@@ -46,7 +46,7 @@ async function main() {
 
       console.log('─'.repeat(50));
       console.log(`[API] Scatter/Gather request: ${requestId}`);
-      console.log(`[API] Models: Haiku 3.5, Sonnet 4, Sonnet 3.5`);
+      console.log(`[API] Models: Haiku 4.5, Sonnet 4.5, Opus 4.5`);
       console.log(`[API] Requester: ${requester}`);
       console.log(`[API] Query: ${query.substring(0, 80)}${query.length > 80 ? '...' : ''}`);
 

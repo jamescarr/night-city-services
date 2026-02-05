@@ -29,24 +29,24 @@ const {
   },
 });
 
-// Claude model configurations - using models with broad API availability
+// Claude 4.5 model family - see https://docs.anthropic.com/en/docs/about-claude/models
 const CLAUDE_MODELS = {
   haiku: {
-    id: 'claude-3-5-haiku-20241022',
-    name: 'Haiku 3.5',
-    tier: 'Fast & Efficient',
+    id: 'claude-haiku-4-5-20251001',
+    name: 'Haiku 4.5',
+    tier: 'Fastest',
     color: '#10b981', // green
   },
   sonnet: {
-    id: 'claude-sonnet-4-20250514',
-    name: 'Sonnet 4',
+    id: 'claude-sonnet-4-5-20250929',
+    name: 'Sonnet 4.5',
     tier: 'Balanced',
     color: '#3b82f6', // blue
   },
-  sonnet35: {
-    id: 'claude-3-5-sonnet-20241022',
-    name: 'Sonnet 3.5',
-    tier: 'Previous Gen',
+  opus: {
+    id: 'claude-opus-4-5-20251101',
+    name: 'Opus 4.5',
+    tier: 'Most Capable',
     color: '#8b5cf6', // purple
   },
 } as const;
@@ -237,7 +237,7 @@ export async function netwatchIntelAgent(request: IntelRequest): Promise<IntelRe
   const modelPromises = [
     queryModel('haiku', request.query),
     queryModel('sonnet', request.query),
-    queryModel('sonnet35', request.query),
+    queryModel('opus', request.query),
   ];
 
   // Wait for all models (don't fail if one fails)
