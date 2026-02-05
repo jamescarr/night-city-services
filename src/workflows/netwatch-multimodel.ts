@@ -118,7 +118,7 @@ export interface MultiModelRequest {
   query: string;
   requester: string;
   priority: 'routine' | 'urgent' | 'critical';
-  models: ('openai' | 'anthropic')[];
+  models: ('anthropic')[];
 }
 
 export interface ModelAnalysis {
@@ -144,7 +144,7 @@ export interface MultiModelResponse {
  * Query a single model
  */
 async function queryModel(
-  modelProvider: 'openai' | 'anthropic',
+  modelProvider: 'anthropic',
   modelId: string,
   query: string
 ): Promise<ModelAnalysis> {
@@ -200,7 +200,6 @@ export async function netwatchMultiModel(request: MultiModelRequest): Promise<Mu
 
   // Map model providers to specific model IDs
   const modelMap: Record<string, string> = {
-    openai: 'gpt-4o-mini',
     anthropic: 'claude-sonnet-4-20250514',
   };
 
