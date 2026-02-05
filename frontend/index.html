@@ -16,7 +16,7 @@
       --text-dim: #666680;
       --haiku-color: #10b981;
       --sonnet-color: #3b82f6;
-      --opus-color: #8b5cf6;
+      --sonnet35-color: #8b5cf6;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -138,7 +138,7 @@
 
     .model-tag.haiku { background: var(--haiku-color); color: #000; }
     .model-tag.sonnet { background: var(--sonnet-color); color: #fff; }
-    .model-tag.opus { background: var(--opus-color); color: #fff; }
+    .model-tag.sonnet35 { background: var(--sonnet35-color); color: #fff; }
 
     .priority-select {
       background: var(--darker-bg);
@@ -220,7 +220,7 @@
 
     .model-card.haiku { border-top: 3px solid var(--haiku-color); }
     .model-card.sonnet { border-top: 3px solid var(--sonnet-color); }
-    .model-card.opus { border-top: 3px solid var(--opus-color); }
+    .model-card.sonnet35 { border-top: 3px solid var(--sonnet35-color); }
 
     .model-card-header {
       padding: 12px 15px;
@@ -237,7 +237,7 @@
 
     .model-card.haiku .model-card-name { color: var(--haiku-color); }
     .model-card.sonnet .model-card-name { color: var(--sonnet-color); }
-    .model-card.opus .model-card-name { color: var(--opus-color); }
+    .model-card.sonnet35 .model-card-name { color: var(--sonnet35-color); }
 
     .model-card-tier {
       font-size: 0.75em;
@@ -402,9 +402,9 @@
       <div class="controls">
         <div class="model-info">
           <span style="color: var(--text-dim);">Querying:</span>
-          <span class="model-tag haiku">Haiku</span>
-          <span class="model-tag sonnet">Sonnet</span>
-          <span class="model-tag opus">Opus</span>
+          <span class="model-tag haiku">Haiku 3.5</span>
+          <span class="model-tag sonnet">Sonnet 4</span>
+          <span class="model-tag sonnet35">Sonnet 3.5</span>
         </div>
 
         <select class="priority-select" id="prioritySelect">
@@ -495,9 +495,9 @@
           <div class="loading-spinner"></div>
           <span>Scatter/Gather in progress...</span>
           <div class="loading-models">
-            <span class="loading-model model-tag haiku">Haiku</span>
-            <span class="loading-model model-tag sonnet">Sonnet</span>
-            <span class="loading-model model-tag opus">Opus</span>
+            <span class="loading-model model-tag haiku">Haiku 3.5</span>
+            <span class="loading-model model-tag sonnet">Sonnet 4</span>
+            <span class="loading-model model-tag sonnet35">Sonnet 3.5</span>
           </div>
         </div>
       `;

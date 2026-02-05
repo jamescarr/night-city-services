@@ -29,24 +29,24 @@ const {
   },
 });
 
-// Claude model configurations
+// Claude model configurations - using models with broad API availability
 const CLAUDE_MODELS = {
   haiku: {
     id: 'claude-3-5-haiku-20241022',
-    name: 'Haiku',
+    name: 'Haiku 3.5',
     tier: 'Fast & Efficient',
     color: '#10b981', // green
   },
   sonnet: {
     id: 'claude-sonnet-4-20250514',
-    name: 'Sonnet',
+    name: 'Sonnet 4',
     tier: 'Balanced',
     color: '#3b82f6', // blue
   },
-  opus: {
-    id: 'claude-3-opus-20240229',
-    name: 'Opus',
-    tier: 'Most Capable',
+  sonnet35: {
+    id: 'claude-3-5-sonnet-20241022',
+    name: 'Sonnet 3.5',
+    tier: 'Previous Gen',
     color: '#8b5cf6', // purple
   },
 } as const;
@@ -237,7 +237,7 @@ export async function netwatchIntelAgent(request: IntelRequest): Promise<IntelRe
   const modelPromises = [
     queryModel('haiku', request.query),
     queryModel('sonnet', request.query),
-    queryModel('opus', request.query),
+    queryModel('sonnet35', request.query),
   ];
 
   // Wait for all models (don't fail if one fails)
