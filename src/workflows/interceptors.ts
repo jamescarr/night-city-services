@@ -4,7 +4,7 @@
  * Limits AI model activity retries to 3 attempts.
  */
 
-import {
+import type {
   WorkflowInterceptorsFactory,
   WorkflowOutboundCallsInterceptor,
   Next,
@@ -16,23 +16,27 @@ class LimitAiRetriesInterceptor implements WorkflowOutboundCallsInterceptor {
     input: ScheduleActivityInput,
     next: Next<WorkflowOutboundCallsInterceptor, 'scheduleActivity'>
   ): Promise<unknown> {
-    // Limit retries for AI SDK activities (invokeModel, invokeEmbeddingModel)
-    if (input.activityType.startsWith('invoke')) {
-      return next({
+    // Limit retries for AI SDK activities
+    if (input.activityType === 'invokeModel' || input.activityType === 'invokeEmbeddingModel') {
+      const modifiedInput = {
         ...input,
         options: {
           ...input.options,
           retry: {
-            ...input.options.retry,
+            ...(input.options.retry || {}),
             maximumAttempts: 3,
           },
         },
-      });
+      };
+      return next(modifiedInput);
     }
     return next(input);
   }
 }
 
-export const interceptors: WorkflowInterceptorsFactory = () => ({
+// Must be the default export for interceptor modules
+const interceptors: WorkflowInterceptorsFactory = () => ({
   outbound: [new LimitAiRetriesInterceptor()],
 });
+
+export default interceptors;
