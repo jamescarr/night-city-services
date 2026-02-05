@@ -34,9 +34,7 @@ class LimitAiRetriesInterceptor implements WorkflowOutboundCallsInterceptor {
   }
 }
 
-// Must be the default export for interceptor modules
-const interceptors: WorkflowInterceptorsFactory = () => ({
+// Named export 'interceptors' as required by Temporal
+export const interceptors: WorkflowInterceptorsFactory = () => ({
   outbound: [new LimitAiRetriesInterceptor()],
 });
-
-export default interceptors;
