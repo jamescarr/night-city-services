@@ -47,6 +47,7 @@ async function run() {
   console.log('Bundling workflows...');
   const workflowBundle = await bundleWorkflowCode({
     workflowsPath: path.resolve(__dirname, '../workflows/index.ts'),
+    interceptorModules: [path.resolve(__dirname, '../workflows/interceptors.ts')],
   });
   console.log('Workflows bundled.\n');
 
