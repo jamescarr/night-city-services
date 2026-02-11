@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetWatch Intelligence Terminal</title>
+  <style>
+    :root {
+      --neon-cyan: #00f0ff;
+      --neon-magenta: #ff00ff;
+      --neon-yellow: #ffff00;
+      --dark-bg: #0a0a0f;
+      --darker-bg: #050508;
+      --terminal-green: #00ff41;
+      --warning-red: #ff3333;
+      --text-dim: #666680;
+      --haiku-color: #10b981;
+      --sonnet-color: #3b82f6;
+      --opus-color: #8b5cf6;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: var(--dark-bg);
+      color: var(--neon-cyan);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .scanline {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 2px);
+      z-index: 1000;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 20px;
+      border: 1px solid var(--neon-cyan);
+      background: linear-gradient(180deg, rgba(0, 240, 255, 0.1) 0%, transparent 100%);
+    }
+
+    .logo {
+      font-size: 2.5em;
+      font-weight: bold;
+      text-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan);
+      letter-spacing: 5px;
+    }
+
+    .subtitle { color: var(--text-dim); margin-top: 10px; font-size: 0.9em; }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      background: var(--darker-bg);
+      border: 1px solid var(--text-dim);
+      margin-bottom: 20px;
+      font-size: 0.8em;
+    }
+
+    .status-indicator { display: flex; align-items: center; gap: 8px; }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--terminal-green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    .query-section {
+      background: var(--darker-bg);
+      border: 1px solid var(--neon-cyan);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .section-header {
+      color: var(--neon-magenta);
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--text-dim);
+    }
+
+    .query-input {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--text-dim);
+      color: var(--neon-cyan);
+      padding: 15px;
+      font-family: inherit;
+      font-size: 1em;
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .query-input:focus {
+      outline: none;
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+    }
+
+    .query-input::placeholder { color: var(--text-dim); }
+
+    .controls {
+      display: flex;
+      gap: 15px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .model-info {
+      display: flex;
+      gap: 15px;
+      padding: 10px;
+      border: 1px solid var(--text-dim);
+      background: var(--darker-bg);
+      flex-wrap: wrap;
+    }
+
+    .model-tag {
+      padding: 4px 10px;
+      border-radius: 3px;
+      font-size: 0.8em;
+      font-weight: bold;
+    }
+
+    .model-tag.haiku { background: var(--haiku-color); color: #000; }
+    .model-tag.sonnet { background: var(--sonnet-color); color: #fff; }
+    .model-tag.opus { background: var(--opus-color); color: #fff; }
+
+    .priority-select {
+      background: var(--darker-bg);
+      border: 1px solid var(--text-dim);
+      color: var(--neon-cyan);
+      padding: 10px 15px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .submit-btn {
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+      border: none;
+      color: var(--dark-bg);
+      padding: 10px 30px;
+      font-family: inherit;
+      font-weight: bold;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      transition: all 0.3s;
+    }
+
+    .submit-btn:hover {
+      box-shadow: 0 0 20px var(--neon-cyan);
+      transform: scale(1.02);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .response-section {
+      background: var(--darker-bg);
+      border: 1px solid var(--terminal-green);
+      padding: 20px;
+    }
+
+    .response-section.error { border-color: var(--warning-red); }
+
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--text-dim);
+    }
+
+    .classification {
+      padding: 3px 10px;
+      font-size: 0.8em;
+      font-weight: bold;
+    }
+
+    .classification.PUBLIC { background: var(--terminal-green); color: var(--dark-bg); }
+    .classification.RESTRICTED { background: var(--neon-yellow); color: var(--dark-bg); }
+    .classification.CLASSIFIED { background: orange; color: var(--dark-bg); }
+    .classification.TOP_SECRET { background: var(--warning-red); color: white; }
+
+    .model-results {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+    }
+
+    @media (max-width: 1200px) {
+      .model-results { grid-template-columns: 1fr; }
+    }
+
+    .model-card {
+      border: 1px solid var(--text-dim);
+      background: var(--dark-bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .model-card.haiku { border-top: 3px solid var(--haiku-color); }
+    .model-card.sonnet { border-top: 3px solid var(--sonnet-color); }
+    .model-card.opus { border-top: 3px solid var(--opus-color); }
+
+    .model-card-header {
+      padding: 12px 15px;
+      border-bottom: 1px solid var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .model-card-name {
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+
+    .model-card.haiku .model-card-name { color: var(--haiku-color); }
+    .model-card.sonnet .model-card-name { color: var(--sonnet-color); }
+    .model-card.opus .model-card-name { color: var(--opus-color); }
+
+    .model-card-tier {
+      font-size: 0.75em;
+      color: var(--text-dim);
+    }
+
+    .model-card-time {
+      font-size: 0.8em;
+      color: var(--text-dim);
+    }
+
+    .model-card-content {
+      padding: 15px;
+      flex: 1;
+      overflow-y: auto;
+      max-height: 400px;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      font-size: 0.9em;
+    }
+
+    .model-card-footer {
+      padding: 10px 15px;
+      border-top: 1px solid var(--text-dim);
+      font-size: 0.75em;
+      color: var(--text-dim);
+    }
+
+    .model-card.error .model-card-content {
+      color: var(--warning-red);
+    }
+
+    .response-meta {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid var(--text-dim);
+      font-size: 0.8em;
+      color: var(--text-dim);
+      display: flex;
+      gap: 30px;
+    }
+
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      padding: 40px;
+      color: var(--neon-cyan);
+    }
+
+    .loading-spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--text-dim);
+      border-top-color: var(--neon-cyan);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .loading-models {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .loading-model {
+      padding: 5px 12px;
+      border-radius: 3px;
+      font-size: 0.8em;
+      opacity: 0.5;
+      animation: loadPulse 1.5s ease-in-out infinite;
+    }
+
+    .loading-model:nth-child(1) { animation-delay: 0s; }
+    .loading-model:nth-child(2) { animation-delay: 0.3s; }
+    .loading-model:nth-child(3) { animation-delay: 0.6s; }
+
+    @keyframes loadPulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .sample-queries { margin-top: 15px; }
+    .sample-queries summary { cursor: pointer; color: var(--text-dim); font-size: 0.9em; }
+
+    .sample-list {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sample-query {
+      background: transparent;
+      border: 1px solid var(--text-dim);
+      color: var(--neon-cyan);
+      padding: 8px 12px;
+      text-align: left;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85em;
+      transition: all 0.2s;
+    }
+
+    .sample-query:hover {
+      border-color: var(--neon-cyan);
+      background: rgba(0, 240, 255, 0.1);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 30px;
+      padding: 15px;
+      color: var(--text-dim);
+      font-size: 0.8em;
+      border-top: 1px solid var(--text-dim);
+    }
+
+    .glitch { animation: glitch 3s infinite; }
+
+    @keyframes glitch {
+      0%, 90%, 100% { text-shadow: 0 0 10px var(--neon-cyan); }
+      92% { text-shadow: -2px 0 var(--neon-magenta), 2px 0 var(--neon-cyan); }
+      94% { text-shadow: 2px 0 var(--neon-magenta), -2px 0 var(--neon-cyan); }
+    }
+
+    .initial-message {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-dim);
+    }
+  </style>
+</head>
+<body>
+  <div class="scanline"></div>
+  
+  <div class="container">
+    <header>
+      <div class="logo glitch">NETWATCH</div>
+      <div class="subtitle">MULTI-MODEL INTELLIGENCE TERMINAL // SCATTER/GATHER v2.077</div>
+    </header>
+
+    <div class="status-bar">
+      <div class="status-indicator">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">SYSTEM ONLINE</span>
+      </div>
+      <div><span id="currentTime"></span></div>
+    </div>
+
+    <div class="query-section">
+      <h2 class="section-header">&gt; SUBMIT INTELLIGENCE REQUEST</h2>
+      
+      <textarea 
+        class="query-input" 
+        id="queryInput"
+        placeholder="Enter your intelligence query... (e.g., What do we know about Arasaka's security?)"
+      ></textarea>
+
+      <div class="controls">
+        <div class="model-info">
+          <span style="color: var(--text-dim);">Querying:</span>
+          <span class="model-tag haiku">Haiku 4.5</span>
+          <span class="model-tag sonnet">Sonnet 4.5</span>
+          <span class="model-tag opus">Opus 4.5</span>
+        </div>
+
+        <select class="priority-select" id="prioritySelect">
+          <option value="routine">ROUTINE</option>
+          <option value="urgent">URGENT</option>
+          <option value="critical">CRITICAL</option>
+        </select>
+
+        <input type="text" class="priority-select" id="requesterInput" placeholder="Requester" value="Anonymous">
+
+        <button class="submit-btn" id="submitBtn" onclick="submitQuery()">SCATTER/GATHER</button>
+      </div>
+
+      <details class="sample-queries">
+        <summary>Sample Queries</summary>
+        <div class="sample-list">
+          <button class="sample-query" onclick="useQuery('What do we know about Arasaka? I need intel for a potential job.')">Corporate Intel: Arasaka</button>
+          <button class="sample-query" onclick="useQuery('I need a threat assessment for an extraction operation at Biotechnica Flats.')">Threat Assessment: Biotechnica</button>
+          <button class="sample-query" onclick="useQuery('Search for any incidents related to the Blackwall.')">Incident Search: Blackwall</button>
+          <button class="sample-query" onclick="useQuery('Give me everything you have on the runner known as V.')">Runner Profile: V</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="response-section" id="responseSection">
+      <div class="response-header">
+        <span class="section-header" style="margin: 0; padding: 0; border: none;">&gt; ANALYSIS RESULTS</span>
+        <span class="classification" id="classification" style="display: none;">PUBLIC</span>
+      </div>
+      <div id="responseContent">
+        <div class="initial-message">
+          Awaiting intelligence request...<br>
+          <small>Query will be sent to Haiku, Sonnet, and Opus in parallel</small>
+        </div>
+      </div>
+      <div class="response-meta" id="responseMeta" style="display: none;">
+        <div>Request ID: <span id="requestId">-</span></div>
+        <div>Total Time: <span id="processingTime">-</span></div>
+      </div>
+    </div>
+
+    <footer>
+      NetWatch Intelligence Division // Night City Bureau<br>
+      Powered by Temporal Durable Execution + Claude Model Family
+    </footer>
+  </div>
+
+  <script>
+    function updateTime() {
+      const now = new Date();
+      document.getElementById('currentTime').textContent = 
+        now.toLocaleString('en-US', { 
+          hour12: false, year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
+        }).replace(',', ' //');
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    function useQuery(query) {
+      document.getElementById('queryInput').value = query;
+    }
+
+    async function submitQuery() {
+      const query = document.getElementById('queryInput').value.trim();
+      const priority = document.getElementById('prioritySelect').value;
+      const requester = document.getElementById('requesterInput').value.trim() || 'Anonymous';
+
+      if (!query) {
+        alert('Please enter a query');
+        return;
+      }
+
+      const submitBtn = document.getElementById('submitBtn');
+      const responseContent = document.getElementById('responseContent');
+      const responseSection = document.getElementById('responseSection');
+      const classification = document.getElementById('classification');
+      const responseMeta = document.getElementById('responseMeta');
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'PROCESSING...';
+      responseSection.classList.remove('error');
+      classification.style.display = 'none';
+      responseMeta.style.display = 'none';
+
+      responseContent.innerHTML = `
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          <span>Scatter/Gather in progress...</span>
+          <div class="loading-models">
+            <span class="loading-model model-tag haiku">Haiku 4.5</span>
+            <span class="loading-model model-tag sonnet">Sonnet 4.5</span>
+            <span class="loading-model model-tag opus">Opus 4.5</span>
+          </div>
+        </div>
+      `;
+
+      try {
+        const response = await fetch('/api/intel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, priority, requester })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Request failed');
+        }
+
+        classification.textContent = result.classification;
+        classification.className = `classification ${result.classification}`;
+        classification.style.display = 'inline-block';
+
+        // Render multi-model results
+        let html = '<div class="model-results">';
+        
+        for (const analysis of result.analyses) {
+          const cardClass = analysis.success ? '' : 'error';
+          html += `
+            <div class="model-card ${analysis.model} ${cardClass}">
+              <div class="model-card-header">
+                <div>
+                  <div class="model-card-name">${analysis.modelName}</div>
+                  <div class="model-card-tier">${analysis.modelTier}</div>
+                </div>
+                <div class="model-card-time">${analysis.processingTime}ms</div>
+              </div>
+              <div class="model-card-content">${analysis.success ? analysis.analysis : 'Error: ' + analysis.error}</div>
+              <div class="model-card-footer">
+                Tools: ${analysis.toolsUsed.length > 0 ? analysis.toolsUsed.join(', ') : 'None'}
+              </div>
+            </div>
+          `;
+        }
+        
+        html += '</div>';
+        responseContent.innerHTML = html;
+
+        document.getElementById('requestId').textContent = result.requestId;
+        document.getElementById('processingTime').textContent = `${result.totalProcessingTime}ms`;
+        responseMeta.style.display = 'flex';
+
+      } catch (error) {
+        responseSection.classList.add('error');
+        responseContent.innerHTML = `<div class="initial-message" style="color: var(--warning-red);">ERROR: ${error.message}</div>`;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'SCATTER/GATHER';
+      }
+    }
+
+    document.getElementById('queryInput').addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'Enter') submitQuery();
+    });
+  </script>
+</body>
+</html>

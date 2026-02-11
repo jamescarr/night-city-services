@@ -83,6 +83,46 @@ planning → team_assembly → gear_acquisition → infiltration → execution �
 **Queries:**
 - `getHeistState()` - Inspect current operation status
 
+### 4. 🤖 NetWatch AI Agent (Experimental)
+
+**Durable AI Agents with Multi-Model Scatter/Gather**
+
+The NetWatch Intelligence Analyst is a durable AI agent that uses Temporal's [AI SDK integration](https://docs.temporal.io/develop/typescript/integrations/ai-sdk) for reliable LLM interactions. It demonstrates:
+
+- **Durable Execution for AI**: LLM calls wrapped as activities with automatic retries
+- **Tool Use**: Agent can query corporate intel, runner profiles, threat assessments
+- **Multi-Model Scatter/Gather**: Query GPT-4o and Claude in parallel, compare results
+- **Secret Management**: API keys only needed by the worker, not clients
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    MULTI-MODEL SCATTER/GATHER                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   Query ──▶ ┌────────────────────────────┐                     │
+│             │   SCATTER (parallel)        │                     │
+│             │   ┌──────────┐  ┌────────┐ │                     │
+│             │   │ GPT-4o   │  │ Claude │ │                     │
+│             │   └────┬─────┘  └───┬────┘ │                     │
+│             └────────┼────────────┼───────┘                     │
+│                      ▼            ▼                             │
+│             ┌────────────────────────────┐                     │
+│             │   GATHER (aggregate)        │                     │
+│             │   Compare + Consensus       │                     │
+│             └────────────────────────────┘                     │
+│                           │                                     │
+│   Response ◀── Combined analysis with both perspectives        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Tools available to the agent:**
+- `queryCorporateIntel` - Arasaka, Militech, Biotechnica databases
+- `queryRunnerProfile` - Known runners and their capabilities
+- `checkSecurityClearance` - NetWatch, NCPD, Corporate clearances
+- `analyzeThreat` - Risk assessment for operations
+- `searchIncidentReports` - Historical incident data
+
 ## Running the Demos
 
 ### Prerequisites
@@ -304,6 +344,34 @@ pnpm run heist:abort
 
 The abort demo sends a `confirmTeamReady` signal, waits for the heist to progress, then sends an `abortHeist` signal—demonstrating how Temporal workflows can respond to external events.
 
+### Demo 4: NetWatch AI Agent
+
+The AI agent requires API keys for OpenAI and/or Anthropic. **Keys are only needed by the worker**, not the client or frontend.
+
+```bash
+# Set API keys (at least one required)
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Start the AI worker (separate from the pattern worker)
+pnpm run netwatch:worker
+
+# Option A: Use the web UI
+pnpm run netwatch:server
+# Open http://localhost:3000
+
+# Option B: Use the CLI
+pnpm run netwatch:client "What do we know about Arasaka?"
+```
+
+The web UI lets you select which models to query (GPT-4o, Claude, or both). When both are selected, it runs a scatter/gather across models and shows side-by-side results with a consensus indicator.
+
+**Sample queries to try:**
+- "What do we know about Arasaka? I need intel for a potential job."
+- "I need a threat assessment for an extraction operation at Biotechnica Flats."
+- "Give me everything you have on the runner known as V."
+- "Search for any incidents related to the Blackwall."
+
 ---
 
 ## The True Beauty of Sagas
@@ -352,27 +420,36 @@ night-city-services/
 │   │   ├── cyberware-activities.ts   # Calls Fixer API + other systems
 │   │   ├── data-broker-activities.ts # Five data brokers
 │   │   ├── heist-activities.ts       # Heist phase management
+│   │   ├── netwatch-activities.ts    # AI agent tools (intel, profiles, threats)
 │   │   └── index.ts
 │   ├── services/
 │   │   ├── fixer-api.ts              # Fixer Inventory API client
 │   │   ├── blockchain.ts             # Night City blockchain client (ethers.js)
-│   │   └── index.ts                  # Service exports
+│   │   └── index.ts
 │   ├── workflows/
 │   │   ├── cyberware-saga.ts         # Saga pattern
 │   │   ├── data-broker-scatter-gather.ts # Scatter-gather
-│   │   ├── heist-process-manager.ts  # Process manager
+│   │   ├── heist-process-manager.ts  # Process manager with signals
+│   │   ├── netwatch-agent.ts         # Single-model AI agent
+│   │   ├── netwatch-multimodel.ts    # Multi-model scatter/gather
 │   │   └── index.ts
 │   ├── shared/
 │   │   └── types.ts                  # Domain models
 │   ├── workers/
-│   │   └── index.ts
-│   └── client.ts                     # Demo runner
+│   │   ├── index.ts                  # Pattern demos worker
+│   │   └── netwatch-worker.ts        # AI agent worker (with AI SDK plugin)
+│   ├── client.ts                     # Pattern demo runner
+│   ├── netwatch-client.ts            # AI agent CLI client
+│   └── netwatch-server.ts            # AI agent web server + API
+├── frontend/
+│   └── index.html                    # Cyberpunk-themed AI agent UI
 ├── services/
 │   └── fixer-api/                    # FastAPI service (simulates flaky API)
 │       ├── main.py
 │       ├── requirements.txt
 │       └── Dockerfile
 ├── docker-compose.yml                # Temporal + Fixer API + Blockchain
+├── .env.example                      # Environment variable template
 ├── package.json
 └── README.md
 ```
@@ -380,8 +457,10 @@ night-city-services/
 ## References
 
 - [Temporal Documentation](https://docs.temporal.io/)
+- [Temporal AI SDK Integration](https://docs.temporal.io/develop/typescript/integrations/ai-sdk)
 - [Saga Pattern - Microsoft](https://docs.microsoft.com/en-us/azure/architecture/reference-architectures/saga/saga)
 - [Sagas (Original 1987 Paper)](https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf)
+- [Vercel AI SDK](https://ai-sdk.dev/)
 
 ---
 

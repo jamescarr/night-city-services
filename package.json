@@ -11,17 +11,29 @@
     "scatter": "tsx src/client.ts scatter",
     "heist": "tsx src/client.ts heist",
     "heist:abort": "tsx src/client.ts heist-abort",
+    "netwatch:worker": "tsx src/workers/netwatch-worker.ts",
+    "netwatch:server": "tsx src/netwatch-server.ts",
+    "netwatch:client": "tsx src/netwatch-client.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.36",
+    "@ai-sdk/openai": "^3.0.25",
     "@temporalio/activity": "^1.11.7",
+    "@temporalio/ai-sdk": "^1.14.1",
     "@temporalio/client": "^1.11.7",
     "@temporalio/worker": "^1.11.7",
     "@temporalio/workflow": "^1.11.7",
+    "ai": "^6.0.69",
+    "cors": "^2.8.6",
     "ethers": "^6.13.0",
-    "uuid": "^10.0.0"
+    "express": "^5.2.1",
+    "uuid": "^10.0.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/node": "^22.10.5",
     "@types/uuid": "^10.0.0",
     "tsx": "^4.19.2",
@@ -31,4 +43,3 @@
     "node": ">=20"
   }
 }
-

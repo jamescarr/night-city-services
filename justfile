@@ -115,6 +115,34 @@ heist-abort:
     pnpm run heist:abort
 
 # =============================================================================
+# NetWatch AI Agent (Experimental)
+# =============================================================================
+
+# Start the NetWatch AI worker (requires OPENAI_API_KEY)
+netwatch-worker:
+    pnpm run netwatch:worker
+
+# Start the NetWatch web server (frontend + API)
+netwatch-server:
+    pnpm run netwatch:server
+
+# Run the NetWatch CLI client
+netwatch-client query="":
+    @if [ -z "{{ query }}" ]; then pnpm run netwatch:client; else pnpm run netwatch:client "{{ query }}"; fi
+
+# Full NetWatch demo (start worker and server)
+netwatch: up
+    @echo ""
+    @echo "Starting NetWatch AI worker in background..."
+    @echo "(Requires OPENAI_API_KEY environment variable)"
+    @echo ""
+    @pnpm run netwatch:worker &
+    @sleep 3
+    @echo ""
+    @echo "Starting web server..."
+    pnpm run netwatch:server
+
+# =============================================================================
 # Demo
 # =============================================================================
 

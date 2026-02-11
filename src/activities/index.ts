@@ -40,3 +40,12 @@ export {
   abortHeist,
   getHeistState
 } from './heist-activities';
+
+// NetWatch Intelligence Activities (AI Agent)
+export {
+  queryCorporateIntel,
+  queryRunnerProfile,
+  checkSecurityClearance,
+  analyzeThreat,
+  searchIncidentReports
+} from './netwatch-activities';
